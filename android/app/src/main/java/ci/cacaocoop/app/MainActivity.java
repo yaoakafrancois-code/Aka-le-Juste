@@ -114,7 +114,7 @@ public class MainActivity extends Activity {
         connecter.setText("Se connecter");
         connecter.setTextSize(18);
         connecter.setOnClickListener(v -> enregistrerServeur(saisie.getText().toString()));
-        saisie.setOnEditorAction((v, action, ev) -> {
+        saisie.setOnEditorActionListener((v, action, ev) -> {
             enregistrerServeur(saisie.getText().toString());
             return true;
         });
