@@ -3,6 +3,11 @@ name: Tests, installateurs et publication
 on:
   push:
   workflow_dispatch:
+    inputs:
+      publier:
+        description: "Publier la version du fichier VERSION sur la page Releases"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -114,19 +119,24 @@ jobs:
 
   publier:
     name: Publier la version (page Releases)
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.publier == 'true'
     needs: [verifier-windows, android]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - id: version
+        run: echo "tag=v$(cat VERSION)" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          name: CacaoCoop ${{ github.ref_name }}
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          make_latest: true
+          name: CacaoCoop ${{ steps.version.outputs.tag }}
           body_path: outils/notes_version.md
           files: |
             dist/Installer-CacaoCoop.exe
