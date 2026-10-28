@@ -31,6 +31,7 @@
     </div></details>
     <details><summary>Achats ▾</summary><div>
       <a href="{% url 'achats:creer' %}">Nouvelle pesée</a>
+      <a href="{% url 'achats:terrain' %}">Collecte terrain (tablette, hors ligne)</a>
       <a href="{% url 'achats:liste' %}">Journal des achats</a>
       {% if user.is_staff %}<a href="{% url 'admin:core_prixdujour_changelist' %}">Prix du jour</a>{% endif %}
     </div></details>

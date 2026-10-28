@@ -357,3 +357,43 @@ class QuotaNormeTests(Donnees):
         self.client.post(f"/producteurs/quotas/{demande.pk}/decision/", {"decision": "approuver"})
         demande.refresh_from_db()
         self.assertEqual(demande.statut, "approuvee")
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class CollecteTerrainTests(Donnees):
+    def setUp(self):
+        self.user = User.objects.create_superuser("peseur", "peseur@example.com", "motdepasse123")
+        self.client.force_login(self.user)
+        self.ra = Programme.objects.create(code="RA", nom="Rainforest Alliance")
+        Parcelle.objects.filter(pk=self.parcelle.pk).update(superficie_ha=Decimal("1"))
+        CertificationProducteur.objects.create(producteur=self.producteur, programme=self.ra, campagne=self.campagne)
+
+    def saisie(self, **kw):
+        donnees = {"reference": "abc-123", "date": "2026-10-20", "campagne": self.campagne.pk,
+                   "magasin": self.magasin.pk, "producteur": self.producteur.pk, "nombre_sacs": 8,
+                   "poids_brut": 505, "tare": 5, "refaction": 0, "qualite": "grade1", "humidite": None}
+        donnees.update(kw)
+        return self.client.post("/achats/terrain/synchroniser/", donnees, content_type="application/json")
+
+    def test_donnees_pour_la_tablette(self):
+        d = self.client.get("/achats/terrain/donnees.json").json()
+        p = next(x for x in d["producteurs"] if x["id"] == self.producteur.pk)
+        self.assertEqual(p["certifications"][0]["restant"], 1000.0)
+        self.assertEqual(d["magasins"][0]["prix_kg"], 2800.0)
+        self.assertEqual(self.client.get("/achats/terrain/").status_code, 200)
+
+    def test_synchronisation_sans_doublon(self):
+        r = self.saisie().json()
+        self.assertEqual(r["statut"], "ok")
+        self.assertEqual(r["poids_certifie"], 500.0)
+        achat = Achat.objects.get()
+        self.assertEqual((achat.reference_terrain, achat.agent), ("abc-123", self.user))
+        self.assertEqual(self.saisie().json()["statut"], "deja")  # renvoi après coupure réseau
+        self.assertEqual(Achat.objects.count(), 1)
+
+    def test_saisie_invalide(self):
+        r = self.saisie(reference="x-1", tare=600)
+        self.assertEqual(r.status_code, 422)
+        self.assertFalse(Achat.objects.exists())
+        self.assertEqual(self.client.post("/achats/terrain/synchroniser/", "pas du json",
+                                          content_type="application/json").status_code, 400)

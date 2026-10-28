@@ -77,9 +77,16 @@ Le fichier `LISEZMOI.txt` du dossier explique chaque lanceur.
 2. Sur la tablette, connectée au **même Wi-Fi**, ouvrez cette adresse dans Chrome.
 3. Menu ⋮ → **Ajouter à l'écran d'accueil** : CacaoCoop s'ouvre ensuite comme une application.
 
-Avec le mode web (serveur en HTTPS), la tablette fonctionne partout où il y a une connexion internet.
-Si la connexion est coupée, une page l'indique. La saisie entièrement hors ligne, avec synchronisation
-ultérieure, est prévue dans une prochaine version.
+**Pesées sans réseau, au champ : menu Achats → Collecte terrain.**
+
+- À l'ouverture, avec le réseau, la page copie sur la tablette les producteurs (carte, superficie, parcelles,
+  quota restant), les magasins et le prix du jour.
+- Ensuite, même sans réseau : on recherche le producteur par nom, code ou n° de carte, on saisit la pesée et un
+  **bon de pesée provisoire** s'affiche, imprimable.
+- Les pesées restent sur la tablette et sont envoyées automatiquement au retour du réseau (ou avec le bouton
+  « Synchroniser »). Le serveur établit alors le reçu définitif, avec le montant, la part certifiée et la prime.
+- Chaque pesée porte un identifiant unique : un envoi répété ne crée jamais de doublon.
+- Laissez la page ouverte pendant la collecte. Avec le mode web en HTTPS, la page se rouvre aussi sans réseau.
 
 ## Mode bureau depuis les sources (développeurs)
 

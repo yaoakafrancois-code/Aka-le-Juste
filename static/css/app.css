@@ -224,3 +224,8 @@ table.compact th, table.compact td { padding: .3rem .4rem; font-size: .85rem; }
                     flex-wrap: wrap; margin-bottom: 1rem; }
 .fiche-producteur div span { display: block; font-size: .8rem; color: var(--doux); }
 .fiche-producteur div strong { font-size: 1.15rem; }
+
+/* Collecte terrain */
+.etat-terrain { background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon); padding: .6rem 1rem; margin-bottom: .8rem; font-size: .9rem; }
+.resultats-recherche { display: flex; flex-direction: column; gap: .35rem; margin-top: .4rem; }
+.resultats-recherche .resultat { text-align: left; padding: .7rem .9rem; font-size: 1rem; }

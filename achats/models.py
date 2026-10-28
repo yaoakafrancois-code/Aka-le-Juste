@@ -78,6 +78,10 @@ class Achat(models.Model):
     montant_prime = models.DecimalField("prime de certification (FCFA)", max_digits=14, decimal_places=2,
                                         default=Decimal("0"), editable=False)
     observations = models.TextField(blank=True)
+    reference_terrain = models.CharField(
+        "référence de saisie terrain", max_length=40, unique=True, null=True, blank=True, editable=False,
+        help_text="Identifiant de la pesée saisie hors connexion sur tablette (évite les doublons à la synchronisation).",
+    )
     agent = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                               related_name="achats_saisis")
     cree_le = models.DateTimeField(auto_now_add=True)

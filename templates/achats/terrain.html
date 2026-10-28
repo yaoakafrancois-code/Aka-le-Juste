@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+{% block titre %}Collecte terrain{% endblock %}
+{% block contenu %}
+<div class="titre-page no-print">
+  <h1>Collecte terrain</h1>
+  <div class="actions">
+    <button class="btn secondaire" type="button" id="btn-donnees">Mettre à jour les données</button>
+    <button class="btn vert" type="button" id="btn-sync">Synchroniser</button>
+  </div>
+</div>
+<div class="etat-terrain no-print" id="etat"></div>
+<p class="aide no-print" style="color:var(--doux)">Cette page fonctionne même sans réseau : les pesées sont gardées sur
+l'appareil puis envoyées automatiquement dès que la connexion revient. Laissez la page ouverte pendant la collecte.
+Les quotas affichés hors connexion sont une estimation ; le reçu définitif est établi à la synchronisation.</p>
+
+<form class="carte no-print" id="form-terrain" autocomplete="off">
+  {% csrf_token %}
+  <div class="recherche-producteur">
+    <label for="t-recherche">Producteur (nom, code ou n° de carte producteur)</label>
+    <input type="search" id="t-recherche" placeholder="Ex. : Kouassi, P00012 ou CI-123456">
+    <div id="t-resultats" class="resultats-recherche"></div>
+  </div>
+  <div class="fiche-producteur" id="t-fiche" hidden></div>
+  <div class="calcul" id="t-quota" hidden></div>
+  <div class="formulaire" style="margin-top:1rem">
+    <div class="champ"><label for="t-magasin">Magasin *</label><select id="t-magasin" required></select></div>
+    <div class="champ"><label for="t-parcelle">Parcelle</label><select id="t-parcelle"><option value="">---------</option></select></div>
+    <div class="champ"><label for="t-sacs">Nombre de sacs *</label><input type="number" id="t-sacs" min="1" value="1" inputmode="numeric" required></div>
+    <div class="champ"><label for="t-brut">Poids brut (kg) *</label><input type="number" id="t-brut" step="0.01" min="0" inputmode="decimal" required></div>
+    <div class="champ"><label for="t-tare">Tare (kg)</label><input type="number" id="t-tare" step="0.01" min="0" value="0" inputmode="decimal"></div>
+    <div class="champ"><label for="t-humidite">Humidité (%)</label><input type="number" id="t-humidite" step="0.1" min="0" inputmode="decimal"></div>
+    <div class="champ"><label for="t-refaction">Réfaction (%)</label><input type="number" id="t-refaction" step="0.1" min="0" max="99" value="0" inputmode="decimal"></div>
+    <div class="champ"><label for="t-qualite">Qualité</label><select id="t-qualite"><option value="grade1">Grade I</option><option value="grade2">Grade II</option><option value="hors_standard">Hors standard</option></select></div>
+    <div class="champ large"><label for="t-observations">Observations</label><input type="text" id="t-observations"></div>
+  </div>
+  <div class="calcul">
+    <div><span>Poids net</span><strong id="t-net">–</strong></div>
+    <div><span>dont certifié (estimation)</span><strong id="t-cert">–</strong></div>
+    <div><span>Prix</span><strong id="t-prix">–</strong></div>
+    <div><span>Montant cacao</span><strong id="t-montant">–</strong></div>
+    <div><span>Prime</span><strong id="t-prime">–</strong></div>
+  </div>
+  <p class="erreur" id="t-erreur"></p>
+  <div class="pied-formulaire"><button class="btn" type="submit">Enregistrer la pesée</button></div>
+</form>
+
+<div class="document" id="bon" hidden></div>
+
+<div class="carte no-print">
+  <h2>Pesées en attente d'envoi</h2>
+  <div class="tableau-conteneur"><table>
+    <thead><tr><th>Bon</th><th>Heure</th><th>Producteur</th><th class="n">Poids net</th><th>État</th><th></th></tr></thead>
+    <tbody id="t-attente"></tbody>
+  </table></div>
+</div>
+<div class="carte no-print">
+  <h2>Pesées envoyées</h2>
+  <div class="tableau-conteneur"><table>
+    <thead><tr><th>Bon</th><th>Reçu définitif</th><th>Producteur</th><th class="n">Poids net</th><th class="n">dont certifié</th><th class="n">Montant</th></tr></thead>
+    <tbody id="t-envoyes"></tbody>
+  </table></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var URL_DONNEES = "{% url 'achats:terrain_donnees' %}";
+  var URL_SYNC = "{% url 'achats:terrain_synchroniser' %}";
+  var CLE_DONNEES = "cacaocoop-terrain-donnees", CLE_FILE = "cacaocoop-terrain-file", CLE_ENVOYES = "cacaocoop-terrain-envoyes";
+  var csrf = document.querySelector("[name=csrfmiddlewaretoken]").value;
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (n, d) { return (n || 0).toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }); };
+  var echapper = function (t) { var e = document.createElement("div"); e.textContent = t == null ? "" : t; return e.innerHTML; };
+  var normaliser = function (t) { return (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/\s+/g, " "); };
+
+  function lire(cle, defaut) { try { var v = localStorage.getItem(cle); return v ? JSON.parse(v) : defaut; } catch (e) { return defaut; } }
+  function ecrire(cle, valeur) { try { localStorage.setItem(cle, JSON.stringify(valeur)); return true; } catch (e) { return false; } }
+
+  var donnees = lire(CLE_DONNEES, null);
+  var file = lire(CLE_FILE, []);
+  var envoyes = lire(CLE_ENVOYES, []);
+  var producteur = null;
+  var enCours = false;
+
+  function nouvelleReference() {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+    return "t-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
+  function etat(message) {
+    var enLigne = navigator.onLine;
+    $("etat").innerHTML =
+      "<span class='badge " + (enLigne ? "vert" : "rouge") + "'>" + (enLigne ? "Connecté" : "Hors connexion") + "</span> " +
+      (donnees ? "Données du " + new Date(donnees.genere_le).toLocaleString("fr-FR") + " · campagne " + echapper(donnees.campagne.libelle) +
+        " · " + donnees.producteurs.length + " producteurs" : "<strong>Aucune donnée sur l'appareil : connectez-vous au réseau et mettez à jour.</strong>") +
+      " · <strong>" + file.length + " pesée(s) en attente</strong>" + (message ? " · " + echapper(message) : "");
+  }
+
+  function chargerDonnees() {
+    return fetch(URL_DONNEES, { credentials: "same-origin", headers: { "Accept": "application/json" } })
+      .then(function (r) {
+        if (r.redirected || !(r.headers.get("content-type") || "").includes("json")) throw new Error("session");
+        return r.json();
+      })
+      .then(function (d) {
+        if (d.erreur) throw new Error(d.erreur);
+        donnees = d;
+        if (!ecrire(CLE_DONNEES, d)) etat("Mémoire de l'appareil pleine");
+        remplirMagasins(); etat("Données mises à jour");
+      })
+      .catch(function (e) {
+        etat(e.message === "session" ? "Session expirée : reconnectez-vous" : (navigator.onLine ? "Mise à jour impossible : " + e.message : "Hors connexion"));
+      });
+  }
+
+  function remplirMagasins() {
+    var select = $("t-magasin"), choisi = select.value || lire("cacaocoop-terrain-magasin", "");
+    select.innerHTML = '<option value="">---------</option>';
+    (donnees ? donnees.magasins : []).forEach(function (m) {
+      var o = document.createElement("option"); o.value = m.id; o.textContent = m.nom; select.appendChild(o);
+    });
+    select.value = choisi;
+  }
+
+  // Certifié déjà saisi sur l'appareil et pas encore envoyé : à retirer du quota restant.
+  function enAttenteCertifie(idProducteur, programme) {
+    return file.filter(function (s) { return s.producteur === idProducteur && s.programme_estime === programme; })
+      .reduce(function (t, s) { return t + (s.certifie_estime || 0); }, 0);
+  }
+
+  function certificationRetenue() {
+    if (!producteur) return null;
+    var c = producteur.certifications.filter(function (x) { return x.certifie; });
+    return c.length ? c[0] : null;
+  }
+
+  function choisirProducteur(p) {
+    producteur = p;
+    $("t-resultats").innerHTML = "";
+    $("t-recherche").value = p ? p.nom + " – " + p.code : "";
+    var fiche = $("t-fiche");
+    fiche.hidden = !p;
+    var parcelle = $("t-parcelle");
+    parcelle.innerHTML = '<option value="">---------</option>';
+    if (p) {
+      fiche.innerHTML =
+        "<div><span>Producteur</span><strong>" + echapper(p.nom) + " (" + echapper(p.code) + ")</strong></div>" +
+        "<div><span>N° carte producteur</span><strong class='" + (p.carte ? "" : "negatif") + "'>" + (p.carte ? echapper(p.carte) : "Non renseigné") + "</strong></div>" +
+        "<div><span>Village</span><strong>" + echapper(p.village || "–") + "</strong></div>" +
+        "<div><span>Superficie</span><strong>" + fmt(p.superficie, 2) + " ha</strong></div>";
+      p.parcelles.forEach(function (pa) {
+        var o = document.createElement("option"); o.value = pa.id; o.textContent = pa.libelle; parcelle.appendChild(o);
+      });
+      if (p.parcelles.length === 1) parcelle.value = p.parcelles[0].id;
+    }
+    calculer();
+  }
+
+  $("t-recherche").addEventListener("input", function () {
+    var q = normaliser(this.value.trim()), zone = $("t-resultats");
+    zone.innerHTML = "";
+    if (!donnees || q.length < 2) return;
+    var trouves = donnees.producteurs.filter(function (p) {
+      return normaliser(p.nom + " " + p.code + " " + (p.carte || "")).indexOf(q) !== -1;
+    }).slice(0, 8);
+    if (!trouves.length) { zone.innerHTML = "<p class='aide'>Aucun producteur trouvé.</p>"; return; }
+    trouves.forEach(function (p) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn secondaire resultat";
+      b.textContent = p.nom + " – " + p.code + (p.carte ? " – carte " + p.carte : "");
+      b.addEventListener("click", function () { choisirProducteur(p); });
+      zone.appendChild(b);
+    });
+    if (trouves.length === 1 && normaliser(trouves[0].carte) === q) choisirProducteur(trouves[0]);
+  });
+
+  function valeur(id) { var v = parseFloat(($(id).value || "").replace(",", ".")); return isNaN(v) ? 0 : v; }
+
+  function calculer() {
+    var net = Math.max((valeur("t-brut") - valeur("t-tare")) * (1 - valeur("t-refaction") / 100), 0);
+    var magasin = donnees ? donnees.magasins.filter(function (m) { return String(m.id) === $("t-magasin").value; })[0] : null;
+    var prix = magasin ? magasin.prix_kg : 0;
+    var cert = certificationRetenue(), certifie = 0, restant = 0;
+    if (cert) {
+      restant = Math.max(cert.restant - enAttenteCertifie(producteur.id, cert.programme), 0);
+      certifie = Math.min(net, restant);
+    }
+    $("t-net").textContent = fmt(net, 2) + " kg";
+    $("t-cert").textContent = fmt(certifie, 2) + " kg" + (cert && certifie ? " (" + cert.code + ")" : "");
+    $("t-prix").textContent = magasin ? fmt(prix, 0) + " F/kg" : "choisir le magasin";
+    $("t-montant").textContent = fmt(Math.round(net * prix), 0) + " F";
+    $("t-prime").textContent = fmt(Math.round(certifie * (cert ? cert.prime_kg : 0)), 0) + " F";
+
+    var bloc = $("t-quota");
+    bloc.hidden = !producteur;
+    if (producteur) {
+      if (!producteur.certifications.length) {
+        bloc.innerHTML = "<div><span>Certification</span><strong>Producteur non certifié : achat en conventionnel.</strong></div>";
+      } else if (!cert) {
+        bloc.innerHTML = "<div><span>Certification</span><strong>" + echapper(producteur.certifications[0].code + " – " + producteur.certifications[0].statut) + " : non certifiable.</strong></div>";
+      } else {
+        var apres = Math.max(restant - certifie, 0);
+        bloc.innerHTML =
+          "<div><span>" + echapper(cert.code) + " – quota (" + echapper(cert.explication) + ")</span><strong>" + fmt(cert.quota, 0) + " kg</strong></div>" +
+          "<div><span>Reste avant la pesée</span><strong>" + fmt(restant, 0) + " kg</strong></div>" +
+          "<div><span>Reste après la pesée</span><strong class='" + (apres > 0 ? "positif" : "negatif") + "'>" + fmt(apres, 0) + " kg</strong></div>" +
+          (restant <= 0 ? "<div><span>Quota</span><strong class='negatif'>Épuisé : ce producteur n'a plus de quota de certification.</strong></div>" : "") +
+          (net > certifie && restant > 0 ? "<div><span>Attention</span><strong class='negatif'>" + fmt(net - certifie, 2) + " kg passent en non certifié.</strong></div>" : "");
+      }
+    }
+    return { net: net, prix: prix, certifie: certifie, cert: cert, magasin: magasin };
+  }
+  ["t-brut", "t-tare", "t-refaction", "t-magasin"].forEach(function (id) {
+    $(id).addEventListener("input", calculer); $(id).addEventListener("change", calculer);
+  });
+  $("t-magasin").addEventListener("change", function () { ecrire("cacaocoop-terrain-magasin", this.value); });
+
+  $("form-terrain").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var c = calculer(), erreur = "";
+    if (!donnees) erreur = "Mettez d'abord à jour les données (connexion nécessaire une fois).";
+    else if (!producteur) erreur = "Choisissez le producteur.";
+    else if (!c.magasin) erreur = "Choisissez le magasin.";
+    else if (valeur("t-brut") <= 0 || valeur("t-tare") >= valeur("t-brut")) erreur = "Vérifiez le poids brut et la tare.";
+    $("t-erreur").textContent = erreur;
+    if (erreur) return;
+    var maintenant = new Date();
+    var saisie = {
+      reference: nouvelleReference(),
+      bon: "T-" + maintenant.toISOString().slice(2, 10).replace(/-/g, "") + "-" + String(file.length + envoyes.length + 1).padStart(3, "0"),
+      saisi_le: maintenant.toISOString(),
+      date: donnees.date === maintenant.toISOString().slice(0, 10) ? donnees.date : maintenant.toISOString().slice(0, 10),
+      campagne: donnees.campagne.id, magasin: c.magasin.id, producteur: producteur.id,
+      parcelle: $("t-parcelle").value || null, nombre_sacs: Math.max(parseInt($("t-sacs").value, 10) || 1, 1),
+      poids_brut: valeur("t-brut"), tare: valeur("t-tare"), humidite: $("t-humidite").value ? valeur("t-humidite") : null,
+      refaction: valeur("t-refaction"), qualite: $("t-qualite").value, observations: $("t-observations").value,
+      // Affichage uniquement : le serveur recalcule tout à la synchronisation.
+      nom: producteur.nom, code: producteur.code, carte: producteur.carte, net: c.net, prix: c.prix,
+      certifie_estime: c.certifie, programme_estime: c.cert ? c.cert.programme : null, code_programme: c.cert ? c.cert.code : "",
+      magasin_nom: c.magasin.nom
+    };
+    file.push(saisie);
+    if (!ecrire(CLE_FILE, file)) { file.pop(); $("t-erreur").textContent = "Mémoire de l'appareil pleine : synchronisez avant de continuer."; return; }
+    afficherBon(saisie);
+    ["t-brut", "t-humidite", "t-observations"].forEach(function (id) { $(id).value = ""; });
+    $("t-sacs").value = 1; $("t-tare").value = 0; $("t-refaction").value = 0;
+    choisirProducteur(null);
+    rafraichir();
+    synchroniser();
+  });
+
+  function afficherBon(s) {
+    var bon = $("bon");
+    bon.hidden = false;
+    bon.innerHTML =
+      "<div class='entete-doc'><div><strong>{{ cooperative.nom|escapejs }}</strong>{% if cooperative.code_ccc %}<br>Code CCC : {{ cooperative.code_ccc|escapejs }}{% endif %}</div>" +
+      "<div style='text-align:right'><strong>BON DE PESÉE PROVISOIRE</strong><br>N° " + echapper(s.bon) + "<br>" + new Date(s.saisi_le).toLocaleString("fr-FR") + "</div></div>" +
+      "<dl class='fiche'><dt>Producteur</dt><dd>" + echapper(s.nom) + " (" + echapper(s.code) + ")</dd>" +
+      "<dt>N° carte producteur</dt><dd><strong>" + echapper(s.carte || "non renseigné") + "</strong></dd>" +
+      "<dt>Magasin</dt><dd>" + echapper(s.magasin_nom) + "</dd>" +
+      "<dt>Sacs / poids brut / tare</dt><dd>" + s.nombre_sacs + " / " + fmt(s.poids_brut, 2) + " kg / " + fmt(s.tare, 2) + " kg</dd>" +
+      "<dt>Poids net</dt><dd><strong>" + fmt(s.net, 2) + " kg</strong>" + (s.certifie_estime ? " dont " + fmt(s.certifie_estime, 2) + " kg certifiés " + echapper(s.code_programme) + " (estimation)" : "") + "</dd>" +
+      "<dt>Montant estimé</dt><dd>" + fmt(Math.round(s.net * s.prix), 0) + " F (" + fmt(s.prix, 0) + " F/kg)</dd></dl>" +
+      "<p><em>Bon provisoire : le reçu définitif (montant, part certifiée, prime) est établi par la coopérative à la synchronisation.</em></p>" +
+      "<div class='signatures'><div>Signature du producteur</div><div>Le peseur ({{ user.get_username|escapejs }})</div></div>" +
+      "<p class='no-print'><button class='btn' type='button' onclick='window.print()'>Imprimer le bon</button> " +
+      "<button class='btn secondaire' type='button' onclick=\"document.getElementById('bon').hidden=true\">Fermer</button></p>";
+    bon.scrollIntoView({ behavior: "smooth" });
+  }
+
+  function rafraichir() {
+    $("t-attente").innerHTML = file.length ? file.map(function (s) {
+      return "<tr><td>" + echapper(s.bon) + "</td><td>" + new Date(s.saisi_le).toLocaleTimeString("fr-FR") + "</td><td>" + echapper(s.nom) +
+        "</td><td class='n'>" + fmt(s.net, 2) + "</td><td>" + (s.erreurs ? "<span class='negatif'>" + echapper(s.erreurs.join(" ")) + "</span>" : "En attente") +
+        "</td><td><button class='btn petit secondaire' type='button' data-ref='" + echapper(s.reference) + "'>Supprimer</button></td></tr>";
+    }).join("") : "<tr><td colspan='6' class='vide'>Aucune pesée en attente.</td></tr>";
+    $("t-envoyes").innerHTML = envoyes.length ? envoyes.slice().reverse().slice(0, 50).map(function (s) {
+      return "<tr><td>" + echapper(s.bon) + "</td><td><a href='" + echapper(s.url_recu) + "'>" + echapper(s.numero) + "</a></td><td>" + echapper(s.nom) +
+        "</td><td class='n'>" + fmt(s.poids_net, 2) + "</td><td class='n'>" + fmt(s.poids_certifie, 2) + "</td><td class='n'>" + fmt(s.montant_total, 0) + "</td></tr>";
+    }).join("") : "<tr><td colspan='6' class='vide'>Aucune pesée envoyée depuis cet appareil.</td></tr>";
+    etat();
+  }
+
+  $("t-attente").addEventListener("click", function (e) {
+    var ref = e.target.getAttribute("data-ref");
+    if (!ref || !confirm("Supprimer cette pesée non envoyée ?")) return;
+    file = file.filter(function (s) { return s.reference !== ref; });
+    ecrire(CLE_FILE, file); rafraichir();
+  });
+
+  function synchroniser() {
+    if (enCours || !file.length || !navigator.onLine) { etat(); return Promise.resolve(); }
+    enCours = true;
+    var aEnvoyer = file.slice();
+    var suite = Promise.resolve(), session = false;
+    aEnvoyer.forEach(function (s) {
+      suite = suite.then(function () {
+        if (session) return;
+        return fetch(URL_SYNC, {
+          method: "POST", credentials: "same-origin",
+          headers: { "Content-Type": "application/json", "X-CSRFToken": csrf, "Accept": "application/json" },
+          body: JSON.stringify(s)
+        }).then(function (r) {
+          if (r.redirected || !(r.headers.get("content-type") || "").includes("json")) { session = true; return; }
+          return r.json().then(function (res) {
+            if (res.statut === "ok" || res.statut === "deja") {
+              file = file.filter(function (x) { return x.reference !== s.reference; });
+              envoyes.push(Object.assign({ bon: s.bon, nom: s.nom }, res));
+              envoyes = envoyes.slice(-200);
+            } else {
+              s.erreurs = res.erreurs || ["Erreur inconnue"];
+            }
+            ecrire(CLE_FILE, file); ecrire(CLE_ENVOYES, envoyes);
+          });
+        }).catch(function () { /* réseau coupé : on réessaiera */ });
+      });
+    });
+    return suite.then(function () {
+      enCours = false;
+      rafraichir();
+      if (session) etat("Session expirée : reconnectez-vous puis synchronisez");
+      else if (!file.length) chargerDonnees();  // quotas à jour après envoi
+    });
+  }
+
+  $("btn-donnees").addEventListener("click", chargerDonnees);
+  $("btn-sync").addEventListener("click", synchroniser);
+  window.addEventListener("online", function () { etat(); synchroniser(); });
+  window.addEventListener("offline", function () { etat(); });
+  setInterval(synchroniser, 30000);
+
+  remplirMagasins();
+  rafraichir();
+  if (navigator.onLine) (file.length ? synchroniser() : chargerDonnees());
+})();
+</script>
+{% endblock %}

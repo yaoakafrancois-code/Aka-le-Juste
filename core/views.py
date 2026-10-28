@@ -120,7 +120,7 @@ def manifeste(request):
 
 def service_worker(request):
     """Service worker : garde en cache le style et les icônes, et affiche une page d'attente hors connexion."""
-    reponse = render(request, "core/sw.js", {"version": "v2"}, content_type="application/javascript")
+    reponse = render(request, "core/sw.js", {"version": "v3"}, content_type="application/javascript")
     reponse["Cache-Control"] = "no-cache"
     return reponse
 
