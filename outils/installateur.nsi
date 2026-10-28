@@ -109,5 +109,5 @@ Section "Uninstall"
   RMDir "$INSTDIR\sauvegardes"
   RMDir "$INSTDIR"
   IfFileExists "$INSTDIR\data\*.*" 0 +2
-    MessageBox MB_OK|MB_ICONINFORMATION /SD IDOK "CacaoCoop est désinstallé.$\r$\n$\r$\nVos données ont été conservées dans :$\r$\n$INSTDIR\data$\r$\n$INSTDIR\sauvegardes"
+    MessageBox MB_OK|MB_ICONINFORMATION "CacaoCoop est désinstallé.$\r$\n$\r$\nVos données ont été conservées dans :$\r$\n$INSTDIR\data$\r$\n$INSTDIR\sauvegardes" /SD IDOK
 SectionEnd
