@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block titre %}Relevé {{ producteur.code }}{% endblock %}
+{% block contenu %}
+<div class="actions no-print" style="margin-bottom:1rem">
+  <button class="btn" onclick="window.print()">Imprimer</button>
+  <a class="btn secondaire" href="{{ producteur.get_absolute_url }}">Fiche producteur</a>
+</div>
+<div class="document">
+  <div class="entete-doc">
+    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}</div>
+    <div style="text-align:right"><strong>RELEVÉ DE COMPTE PRODUCTEUR</strong><br>{{ producteur.nom_complet }} ({{ producteur.code }})<br>{% if campagne %}Campagne {{ campagne }}{% else %}Toutes campagnes{% endif %}</div>
+  </div>
+  <table>
+    <thead><tr><th>Date</th><th>Libellé</th><th class="n">Crédit (F)</th><th class="n">Débit (F)</th><th class="n">Solde (F)</th></tr></thead>
+    <tbody>{% for l in lignes %}<tr><td>{{ l.date|date:"d/m/Y" }}</td><td>{{ l.libelle }}</td><td class="n">{% if l.credit %}{{ l.credit|floatformat:"0g" }}{% endif %}</td><td class="n">{% if l.debit %}{{ l.debit|floatformat:"0g" }}{% endif %}</td><td class="n">{{ l.solde|floatformat:"0g" }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="vide">Aucun mouvement.</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><td colspan="2">Solde {% if situation.solde >= 0 %}dû au producteur{% else %}dû par le producteur{% endif %}</td><td class="n">{{ situation.achats|add:situation.primes|floatformat:"0g" }}</td><td class="n">{{ situation.paiements|add:situation.avances|floatformat:"0g" }}</td><td class="n">{{ situation.solde|floatformat:"0g" }}</td></tr></tfoot>
+  </table>
+  <p>Poids total livré : {{ situation.poids|floatformat:"2g" }} kg</p>
+</div>
+{% endblock %}

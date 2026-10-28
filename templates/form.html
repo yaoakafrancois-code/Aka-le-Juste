@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block titre %}{{ titre }}{% endblock %}
+{% block contenu %}
+<div class="titre-page"><h1>{{ titre }}</h1></div>
+<form method="post" class="carte" novalidate>
+  {% csrf_token %}
+  {% block avant_champs %}{% endblock %}
+  {% include "_champs.html" %}
+  {% block apres_champs %}{% endblock %}
+  <div class="pied-formulaire">
+    <button type="submit" class="btn">Enregistrer</button>
+    <a class="btn secondaire" href="javascript:history.back()">Annuler</a>
+  </div>
+</form>
+{% endblock %}

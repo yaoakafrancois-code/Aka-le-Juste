@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block titre %}Achat {{ object.numero }}{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>Achat {{ object.numero }}</h1>
+  <div class="actions">
+    <a class="btn" href="{% url 'achats:recu' object.pk %}">Imprimer le reçu</a>
+    <a class="btn secondaire" href="{% url 'achats:creer' %}?magasin={{ object.magasin_id }}">+ Nouvelle pesée</a>
+    {% if object.lot.statut != "livre" %}
+    <a class="btn secondaire" href="{% url 'achats:modifier' object.pk %}">Modifier</a>
+    <a class="btn danger" href="{% url 'achats:supprimer' object.pk %}">Supprimer</a>
+    {% endif %}
+  </div>
+</div>
+<div class="grille-2">
+  <div class="carte"><h2>Pesée</h2><dl class="fiche">
+    <dt>Date</dt><dd>{{ object.date|date:"d/m/Y" }}</dd>
+    <dt>Campagne</dt><dd>{{ object.campagne }}</dd>
+    <dt>Magasin</dt><dd>{{ object.magasin }}</dd>
+    <dt>Nombre de sacs</dt><dd>{{ object.nombre_sacs }}</dd>
+    <dt>Poids brut</dt><dd>{{ object.poids_brut|floatformat:"2g" }} kg</dd>
+    <dt>Tare</dt><dd>{{ object.tare|floatformat:"2g" }} kg</dd>
+    <dt>Humidité</dt><dd>{% if object.humidite is not None %}{{ object.humidite }} %{% else %}–{% endif %}</dd>
+    <dt>Réfaction</dt><dd>{{ object.refaction }} %</dd>
+    <dt>Poids net</dt><dd><strong>{{ object.poids_net|floatformat:"2g" }} kg</strong></dd>
+    <dt>Qualité</dt><dd>{{ object.get_qualite_display }}</dd>
+    <dt>Prix</dt><dd>{{ object.prix_kg|floatformat:"0g" }} FCFA/kg</dd>
+    <dt>Montant</dt><dd><strong>{{ object.montant|floatformat:"0g" }} FCFA</strong></dd>
+  </dl></div>
+  <div class="carte"><h2>Origine et suivi</h2><dl class="fiche">
+    <dt>Producteur</dt><dd><a href="{{ object.producteur.get_absolute_url }}">{{ object.producteur }}</a></dd>
+    <dt>Section</dt><dd>{{ object.producteur.section|default:"–" }}</dd>
+    <dt>Parcelle</dt><dd>{{ object.parcelle|default:"Non renseignée" }}</dd>
+    <dt>Lot</dt><dd>{% if object.lot %}<a href="{{ object.lot.get_absolute_url }}">{{ object.lot }}</a> ({{ object.lot.get_statut_display }}){% else %}Hors lot{% endif %}</dd>
+    <dt>Saisi par</dt><dd>{{ object.agent|default:"–" }} le {{ object.cree_le|date:"d/m/Y H:i" }}</dd>
+    <dt>Observations</dt><dd>{{ object.observations|default:"–"|linebreaksbr }}</dd>
+  </dl></div>
+</div>
+{% endblock %}

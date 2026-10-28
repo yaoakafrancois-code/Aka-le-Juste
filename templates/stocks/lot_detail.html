@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block titre %}Lot {{ object.numero }}{% endblock %}
+{% block contenu %}
+{% with lot=object %}
+<div class="titre-page">
+  <h1>Lot {{ lot.numero }} {% include "stocks/_badge_lot.html" %}</h1>
+  <div class="actions">
+    <a class="btn secondaire" href="{% url 'stocks:lot_tracabilite' lot.pk %}">Fiche de traçabilité (CSV)</a>
+    {% if lot.statut != "livre" %}
+    <form method="post" action="{% url 'stocks:lot_statut' lot.pk %}">{% csrf_token %}
+      {% if lot.statut == "ouvert" %}<button class="btn vert" name="statut" value="ferme">Fermer le lot</button>
+      {% else %}<button class="btn secondaire" name="statut" value="ouvert">Rouvrir le lot</button>{% endif %}
+    </form>
+    <a class="btn secondaire" href="{% url 'stocks:lot_modifier' lot.pk %}">Modifier</a>
+    <a class="btn danger" href="{% url 'stocks:lot_supprimer' lot.pk %}">Supprimer</a>
+    {% endif %}
+  </div>
+</div>
+<div class="grille">
+  <div class="indicateur"><div class="libelle">Magasin</div><div class="valeur" style="font-size:1.1rem">{{ lot.magasin.nom }}</div><div class="detail">Campagne {{ lot.campagne }}</div></div>
+  <div class="indicateur orange"><div class="libelle">Poids net</div><div class="valeur">{{ lot.poids_net|floatformat:"0g" }} kg</div><div class="detail">{{ lot.nombre_sacs }} sacs</div></div>
+  <div class="indicateur"><div class="libelle">Valeur d'achat</div><div class="valeur">{{ lot.valeur_achat|floatformat:"0g" }} F</div></div>
+  <div class="indicateur vert"><div class="libelle">Producteurs d'origine</div><div class="valeur">{{ producteurs|length }}</div></div>
+</div>
+{% for liv in lot.livraisons.all %}<p>Livré le {{ liv.date|date:"d/m/Y" }} à {{ liv.exportateur }} — <a href="{{ liv.get_absolute_url }}">{{ liv }}</a></p>{% endfor %}
+
+<div class="carte">
+  <h2>Achats du lot</h2>
+  <form method="post" action="{% url 'stocks:lot_achats' lot.pk %}">{% csrf_token %}
+  <div class="tableau-conteneur"><table>
+    <thead><tr>{% if lot.statut == "ouvert" %}<th></th>{% endif %}<th>Reçu</th><th>Date</th><th>Producteur</th><th>Parcelle</th><th class="n">Sacs</th><th class="n">Poids net</th></tr></thead>
+    <tbody>{% for a in achats %}<tr>{% if lot.statut == "ouvert" %}<td><input type="checkbox" name="achats" value="{{ a.pk }}"></td>{% endif %}<td><a href="{{ a.get_absolute_url }}">{{ a.numero }}</a></td><td>{{ a.date|date:"d/m/Y" }}</td><td>{{ a.producteur.nom_complet }}</td><td>{{ a.parcelle.code|default:"–" }}</td><td class="n">{{ a.nombre_sacs }}</td><td class="n">{{ a.poids_net|floatformat:"2g" }}</td></tr>
+    {% empty %}<tr><td colspan="7" class="vide">Aucun achat dans ce lot.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if lot.statut == "ouvert" and achats %}<p><button class="btn petit secondaire" name="action" value="retirer">Retirer la sélection du lot</button></p>{% endif %}
+  </form>
+</div>
+
+{% if lot.statut == "ouvert" %}
+<div class="carte">
+  <h2>Achats disponibles ({{ lot.magasin.nom }}, hors lot)</h2>
+  <form method="post" action="{% url 'stocks:lot_achats' lot.pk %}">{% csrf_token %}
+  <div class="tableau-conteneur"><table>
+    <thead><tr><th><input type="checkbox" onclick="document.querySelectorAll('.dispo').forEach(c => c.checked = this.checked)"></th><th>Reçu</th><th>Date</th><th>Producteur</th><th class="n">Sacs</th><th class="n">Poids net</th></tr></thead>
+    <tbody>{% for a in disponibles %}<tr><td><input class="dispo" type="checkbox" name="achats" value="{{ a.pk }}"></td><td>{{ a.numero }}</td><td>{{ a.date|date:"d/m/Y" }}</td><td>{{ a.producteur.nom_complet }}</td><td class="n">{{ a.nombre_sacs }}</td><td class="n">{{ a.poids_net|floatformat:"2g" }}</td></tr>
+    {% empty %}<tr><td colspan="6" class="vide">Aucun achat disponible pour ce magasin et cette campagne.</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% if disponibles %}<p><button class="btn" name="action" value="ajouter">Ajouter la sélection au lot</button></p>{% endif %}
+  </form>
+</div>
+{% endif %}
+
+<div class="carte"><h2>Répartition par producteur</h2><table>
+  <thead><tr><th>Code</th><th>Producteur</th><th class="n">Poids (kg)</th></tr></thead>
+  <tbody>{% for p in producteurs %}<tr><td>{{ p.producteur__code }}</td><td>{{ p.producteur__nom }} {{ p.producteur__prenoms }}</td><td class="n">{{ p.poids|floatformat:"2g" }}</td></tr>{% empty %}<tr><td colspan="3" class="vide">–</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endwith %}
+{% endblock %}

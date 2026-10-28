@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block titre %}Reçu {{ achat.numero }}{% endblock %}
+{% block contenu %}
+<div class="actions no-print" style="margin-bottom:1rem">
+  <button class="btn" onclick="window.print()">Imprimer</button>
+  <a class="btn secondaire" href="{% url 'achats:creer' %}?magasin={{ achat.magasin_id }}">+ Nouvelle pesée</a>
+  <a class="btn secondaire" href="{{ achat.get_absolute_url }}">Retour</a>
+</div>
+<div class="document">
+  <div class="entete-doc">
+    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}{% if cooperative.numero_agrement %}<br>Agrément : {{ cooperative.numero_agrement }}{% endif %}</div>
+    <div style="text-align:right"><strong>REÇU D'ACHAT DE CACAO</strong><br>N° {{ achat.numero }}<br>Date : {{ achat.date|date:"d/m/Y" }}<br>Campagne : {{ achat.campagne }}</div>
+  </div>
+  <dl class="fiche">
+    <dt>Producteur</dt><dd>{{ achat.producteur.nom_complet }} ({{ achat.producteur.code }})</dd>
+    <dt>Section / village</dt><dd>{{ achat.producteur.section|default:"–" }} / {{ achat.producteur.village|default:"–" }}</dd>
+    {% if achat.parcelle %}<dt>Parcelle</dt><dd>{{ achat.parcelle.code }}</dd>{% endif %}
+    <dt>Magasin</dt><dd>{{ achat.magasin.nom }}</dd>
+  </dl>
+  <table style="margin-top:1rem">
+    <thead><tr><th>Sacs</th><th class="n">Poids brut</th><th class="n">Tare</th><th class="n">Réfaction</th><th class="n">Poids net</th><th class="n">Prix/kg</th><th class="n">Montant</th></tr></thead>
+    <tbody><tr><td>{{ achat.nombre_sacs }}</td><td class="n">{{ achat.poids_brut|floatformat:"2g" }} kg</td><td class="n">{{ achat.tare|floatformat:"2g" }} kg</td><td class="n">{{ achat.refaction }} %</td><td class="n">{{ achat.poids_net|floatformat:"2g" }} kg</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }} F</td><td class="n"><strong>{{ achat.montant|floatformat:"0g" }} F</strong></td></tr></tbody>
+  </table>
+  <p>Qualité : {{ achat.get_qualite_display }}{% if achat.humidite is not None %} · Humidité : {{ achat.humidite }} %{% endif %}</p>
+  <div class="signatures"><div>Signature du producteur</div><div>Le peseur ({{ achat.agent|default:"" }})</div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,7 @@
+{% if is_paginated %}
+<div class="pagination no-print">
+  {% if page_obj.has_previous %}<a class="btn petit secondaire" href="?{{ params }}{% if params %}&{% endif %}page={{ page_obj.previous_page_number }}">← Précédent</a>{% endif %}
+  <span>Page {{ page_obj.number }} / {{ paginator.num_pages }} ({{ paginator.count }} éléments)</span>
+  {% if page_obj.has_next %}<a class="btn petit secondaire" href="?{{ params }}{% if params %}&{% endif %}page={{ page_obj.next_page_number }}">Suivant →</a>{% endif %}
+</div>
+{% endif %}

@@ -1,0 +1,3 @@
+{% extends "paiements/_liste_financiere.html" %}
+{% block entetes %}<th>Date</th><th>Producteur</th><th>Campagne</th><th>Type</th><th>Observations</th><th class="n">Montant (F)</th><th></th>{% endblock %}
+{% block ligne %}<td>{{ o.date|date:"d/m/Y" }}</td><td><a href="{{ o.producteur.get_absolute_url }}">{{ o.producteur.nom_complet }}</a></td><td>{{ o.campagne }}</td><td>{{ o.get_type_prime_display }}</td><td>{{ o.observations }}</td><td class="n">{{ o.montant|floatformat:"0g" }}</td><td><a href="{% url 'paiements:prime_modifier' o.pk %}">Modifier</a></td>{% endblock %}

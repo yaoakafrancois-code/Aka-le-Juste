@@ -1,0 +1,11 @@
+{% extends "form.html" %}
+{% block avant_champs %}
+{% if producteur_selectionne %}
+<div class="calcul" style="margin:0 0 1rem">
+  <div><span>Producteur</span><strong>{{ producteur_selectionne.nom_complet }}</strong></div>
+  <div><span>Achats + primes</span><strong>{{ situation.achats|add:situation.primes|floatformat:"0g" }} F</strong></div>
+  <div><span>Déjà payé + avances</span><strong>{{ situation.paiements|add:situation.avances|floatformat:"0g" }} F</strong></div>
+  <div><span>Solde dû</span><strong class="{% if situation.solde >= 0 %}positif{% else %}negatif{% endif %}">{{ situation.solde|floatformat:"0g" }} F</strong></div>
+</div>
+{% endif %}
+{% endblock %}

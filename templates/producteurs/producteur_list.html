@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titre %}Producteurs{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>Producteurs</h1>
+  <div class="actions">
+    <a class="btn secondaire" href="{% url 'producteurs:export' %}">Exporter (CSV)</a>
+    <a class="btn" href="{% url 'producteurs:creer' %}">+ Nouveau producteur</a>
+  </div>
+</div>
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ q }}" placeholder="Nom, code, téléphone, village…"></label>
+  <label>Section<select name="section"><option value="">Toutes</option>{% for s in sections %}<option value="{{ s.pk }}" {% if request.GET.section == s.pk|stringformat:"s" %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
+  <label>Statut<select name="actif"><option value="">Tous</option><option value="True" {% if request.GET.actif == "True" %}selected{% endif %}>Actifs</option><option value="False" {% if request.GET.actif == "False" %}selected{% endif %}>Inactifs</option></select></label>
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+<div class="tableau-conteneur"><table>
+  <thead><tr><th>Code</th><th>Nom et prénoms</th><th>Section</th><th>Village</th><th>Téléphone</th><th>Statut</th><th></th></tr></thead>
+  <tbody>
+  {% for p in object_list %}
+  <tr>
+    <td>{{ p.code }}</td><td><a href="{{ p.get_absolute_url }}">{{ p.nom_complet }}</a></td><td>{{ p.section|default:"–" }}</td>
+    <td>{{ p.village }}</td><td>{{ p.telephone }}</td>
+    <td>{% if p.actif %}<span class="badge vert">Actif</span>{% else %}<span class="badge gris">Inactif</span>{% endif %}</td>
+    <td><a class="btn petit secondaire" href="{% url 'achats:creer' %}?producteur={{ p.pk }}">Pesée</a></td>
+  </tr>
+  {% empty %}<tr><td colspan="7" class="vide">Aucun producteur trouvé.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "_pagination.html" %}
+{% endblock %}

@@ -1,0 +1,6 @@
+<label>Campagne
+  <select name="campagne" onchange="this.form.submit()">
+    <option value="">Toutes</option>
+    {% for c in campagnes %}<option value="{{ c.pk }}" {% if campagne.pk == c.pk or request.GET.campagne == c.pk|stringformat:"s" %}selected{% endif %}>{{ c }}</option>{% endfor %}
+  </select>
+</label>

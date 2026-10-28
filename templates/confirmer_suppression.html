@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block titre %}Supprimer{% endblock %}
+{% block contenu %}
+<div class="carte">
+  <h1>Supprimer « {{ object }} » ?</h1>
+  <p>Cette action est définitive.</p>
+  <form method="post">{% csrf_token %}
+    <button class="btn danger" type="submit">Oui, supprimer</button>
+    <a class="btn secondaire" href="javascript:history.back()">Annuler</a>
+  </form>
+</div>
+{% endblock %}

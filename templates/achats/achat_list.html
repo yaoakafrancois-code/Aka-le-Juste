@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block titre %}Journal des achats{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>Journal des achats</h1>
+  <div class="actions">
+    <a class="btn secondaire" href="{% url 'achats:export' %}?{{ params }}">Exporter (CSV)</a>
+    <a class="btn" href="{% url 'achats:creer' %}">+ Nouvelle pesée</a>
+  </div>
+</div>
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ q }}" placeholder="N° reçu, producteur…"></label>
+  {% include "_filtre_campagne.html" %}
+  <label>Magasin<select name="magasin"><option value="">Tous</option>{% for m in magasins %}<option value="{{ m.pk }}" {% if request.GET.magasin == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.nom }}</option>{% endfor %}</select></label>
+  <label>Du<input type="date" name="du" value="{{ request.GET.du }}"></label>
+  <label>Au<input type="date" name="au" value="{{ request.GET.au }}"></label>
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+<div class="grille">
+  <div class="indicateur"><div class="libelle">Pesées</div><div class="valeur">{{ totaux.nombre }}</div></div>
+  <div class="indicateur"><div class="libelle">Sacs</div><div class="valeur">{{ totaux.sacs|default:0 }}</div></div>
+  <div class="indicateur"><div class="libelle">Poids net</div><div class="valeur">{{ totaux.poids|default:0|floatformat:"0g" }} kg</div></div>
+  <div class="indicateur"><div class="libelle">Montant</div><div class="valeur">{{ totaux.montant|default:0|floatformat:"0g" }} F</div></div>
+</div>
+<div class="tableau-conteneur"><table>
+  <thead><tr><th>Reçu</th><th>Date</th><th>Producteur</th><th>Magasin</th><th class="n">Sacs</th><th class="n">Brut</th><th class="n">Net (kg)</th><th class="n">Prix</th><th class="n">Montant (F)</th><th>Lot</th></tr></thead>
+  <tbody>
+  {% for a in object_list %}
+  <tr><td><a href="{{ a.get_absolute_url }}">{{ a.numero }}</a></td><td>{{ a.date|date:"d/m/Y" }}</td><td><a href="{{ a.producteur.get_absolute_url }}">{{ a.producteur.nom_complet }}</a></td><td>{{ a.magasin.nom }}</td>
+    <td class="n">{{ a.nombre_sacs }}</td><td class="n">{{ a.poids_brut|floatformat:"2g" }}</td><td class="n">{{ a.poids_net|floatformat:"2g" }}</td><td class="n">{{ a.prix_kg|floatformat:"0g" }}</td><td class="n">{{ a.montant|floatformat:"0g" }}</td>
+    <td>{% if a.lot %}<a href="{{ a.lot.get_absolute_url }}">{{ a.lot }}</a>{% else %}<span class="badge gris">Hors lot</span>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="10" class="vide">Aucun achat trouvé.</td></tr>{% endfor %}
+  </tbody>
+</table></div>
+{% include "_pagination.html" %}
+{% endblock %}

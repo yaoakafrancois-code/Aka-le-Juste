@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block titre %}Livraison {{ object.numero }}{% endblock %}
+{% block contenu %}
+<div class="actions no-print" style="margin-bottom:1rem">
+  <button class="btn" onclick="window.print()">Imprimer le bordereau</button>
+  <a class="btn secondaire" href="{% url 'stocks:livraison_modifier' object.pk %}">Modifier</a>
+  <a class="btn danger" href="{% url 'stocks:livraison_supprimer' object.pk %}">Supprimer</a>
+</div>
+<div class="document">
+  <div class="entete-doc">
+    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}</div>
+    <div style="text-align:right"><strong>BORDEREAU DE LIVRAISON</strong><br>N° {{ object.numero }}<br>Date : {{ object.date|date:"d/m/Y" }}</div>
+  </div>
+  <dl class="fiche">
+    <dt>Exportateur</dt><dd>{{ object.exportateur }}{% if object.exportateur.numero_agrement %} (agrément {{ object.exportateur.numero_agrement }}){% endif %}</dd>
+    <dt>Transporteur</dt><dd>{{ object.transporteur|default:"–" }} · {{ object.immatriculation|default:"–" }}</dd>
+    <dt>Bordereau / connaissement</dt><dd>{{ object.numero_bordereau|default:"–" }}</dd>
+  </dl>
+  <table style="margin-top:1rem">
+    <thead><tr><th>Lot</th><th>Magasin</th><th class="n">Sacs</th><th class="n">Poids en stock (kg)</th></tr></thead>
+    <tbody>{% for lot in object.lots.all %}<tr><td><a href="{{ lot.get_absolute_url }}">{{ lot }}</a></td><td>{{ lot.magasin.nom }}</td><td class="n">{{ lot.nombre_sacs }}</td><td class="n">{{ lot.poids_net|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+    <tfoot>
+      <tr><td colspan="3">Poids des lots</td><td class="n">{{ object.poids_lots|floatformat:"2g" }}</td></tr>
+      <tr><td colspan="3">Poids reconnu à la livraison</td><td class="n">{{ object.poids_livre|floatformat:"2g" }}</td></tr>
+      <tr><td colspan="3">Écart (perte de poids)</td><td class="n {% if object.ecart_poids < 0 %}negatif{% endif %}">{{ object.ecart_poids|floatformat:"2g" }}</td></tr>
+      <tr><td colspan="3">Montant de la vente ({{ object.prix_kg|floatformat:"0g" }} F/kg)</td><td class="n">{{ object.montant|floatformat:"0g" }} F</td></tr>
+    </tfoot>
+  </table>
+  {% if object.observations %}<p>{{ object.observations|linebreaksbr }}</p>{% endif %}
+  <div class="signatures"><div>Pour la coopérative</div><div>Pour l'acheteur / le transporteur</div></div>
+</div>
+{% endblock %}

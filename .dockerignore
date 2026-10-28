@@ -1,0 +1,6 @@
+.venv
+data
+staticfiles
+sauvegardes
+.git
+__pycache__

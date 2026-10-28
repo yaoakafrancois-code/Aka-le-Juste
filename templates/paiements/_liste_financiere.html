@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block titre %}{{ titre_liste }}{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>{{ titre_liste }}</h1>
+  <div class="actions"><a class="btn" href="{{ url_creation }}">+ {{ libelle_creation }}</a></div>
+</div>
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ q }}" placeholder="Producteur, code…"></label>
+  {% include "_filtre_campagne.html" %}
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+<div class="grille"><div class="indicateur"><div class="libelle">Total</div><div class="valeur">{{ total|floatformat:"0g" }} FCFA</div></div></div>
+<div class="tableau-conteneur"><table>
+  <thead><tr>{% block entetes %}{% endblock %}</tr></thead>
+  <tbody>{% for o in object_list %}<tr>{% block ligne %}{% endblock %}</tr>{% empty %}<tr><td colspan="8" class="vide">Aucun enregistrement.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "_pagination.html" %}
+{% endblock %}

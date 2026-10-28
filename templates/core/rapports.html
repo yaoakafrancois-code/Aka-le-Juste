@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block titre %}Rapports{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>Rapports{% if campagne %} — {{ campagne }}{% endif %}</h1>
+  <form class="actions no-print" method="get">{% include "_filtre_campagne.html" %}
+    <button type="button" class="btn secondaire" onclick="window.print()">Imprimer</button></form>
+</div>
+<div class="grille">
+  <div class="indicateur"><div class="libelle">Poids net total</div><div class="valeur">{{ total.poids|default:0|floatformat:"0g" }} kg</div></div>
+  <div class="indicateur"><div class="libelle">Montant total</div><div class="valeur">{{ total.montant|default:0|floatformat:"0g" }} F</div></div>
+  <div class="indicateur"><div class="libelle">Pesées / sacs</div><div class="valeur">{{ total.nombre }} / {{ total.sacs|default:0 }}</div></div>
+  <div class="indicateur"><div class="libelle">Producteurs livreurs</div><div class="valeur">{{ total.producteurs }}</div></div>
+</div>
+
+<div class="grille-2">
+  <div class="carte"><h2>Par section</h2><table>
+    <thead><tr><th>Section</th><th class="n">Producteurs</th><th class="n">Poids (kg)</th><th class="n">Montant (F)</th></tr></thead>
+    <tbody>{% for l in par_section %}<tr><td>{{ l.producteur__section__nom|default:"(sans section)" }}</td><td class="n">{{ l.producteurs }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td><td class="n">{{ l.montant|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="4" class="vide">Aucune donnée</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="carte"><h2>Par magasin</h2><table>
+    <thead><tr><th>Magasin</th><th class="n">Pesées</th><th class="n">Poids (kg)</th><th class="n">Montant (F)</th></tr></thead>
+    <tbody>{% for l in par_magasin %}<tr><td>{{ l.magasin__nom }}</td><td class="n">{{ l.nombre }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td><td class="n">{{ l.montant|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="4" class="vide">Aucune donnée</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="carte"><h2>Par qualité</h2><table>
+    <thead><tr><th>Qualité</th><th class="n">Pesées</th><th class="n">Poids (kg)</th><th class="n">Montant (F)</th></tr></thead>
+    <tbody>{% for l in par_qualite %}<tr><td>{% for k, v in qualites.items %}{% if k == l.qualite %}{{ v }}{% endif %}{% endfor %}</td><td class="n">{{ l.nombre }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td><td class="n">{{ l.montant|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="4" class="vide">Aucune donnée</td></tr>{% endfor %}</tbody>
+  </table></div>
+  <div class="carte"><h2>Par mois</h2><table>
+    <thead><tr><th>Mois</th><th class="n">Pesées</th><th class="n">Poids (kg)</th><th class="n">Montant (F)</th></tr></thead>
+    <tbody>{% for l in par_mois %}<tr><td>{{ l.mois|date:"F Y" }}</td><td class="n">{{ l.nombre }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td><td class="n">{{ l.montant|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="4" class="vide">Aucune donnée</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+<div class="carte"><h2>Meilleurs producteurs (top 20)</h2><table>
+  <thead><tr><th>#</th><th>Code</th><th>Producteur</th><th class="n">Pesées</th><th class="n">Poids (kg)</th><th class="n">Montant (F)</th></tr></thead>
+  <tbody>{% for l in top_producteurs %}<tr><td>{{ forloop.counter }}</td><td>{{ l.producteur__code }}</td><td><a href="{% url 'producteurs:detail' l.producteur__id %}">{{ l.producteur__nom }} {{ l.producteur__prenoms }}</a></td><td class="n">{{ l.nombre }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td><td class="n">{{ l.montant|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="6" class="vide">Aucune donnée</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

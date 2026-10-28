@@ -1,0 +1,48 @@
+{% extends "form.html" %}
+{% block apres_champs %}
+<div class="calcul">
+  <div><span>Poids net</span><strong id="calc-net">–</strong></div>
+  <div><span>Prix appliqué</span><strong id="calc-prix">–</strong></div>
+  <div><span>Montant à payer</span><strong id="calc-montant">–</strong></div>
+</div>
+{% endblock %}
+{% block scripts %}
+{{ prix_campagnes|json_script:"prix-campagnes" }}
+<script>
+(function () {
+  var prixCampagnes = JSON.parse(document.getElementById("prix-campagnes").textContent || "{}");
+  var $ = function (id) { return document.getElementById(id); };
+  var nombre = function (id) { var v = parseFloat(($(id).value || "").replace(",", ".")); return isNaN(v) ? 0 : v; };
+  var fmt = function (n, d) { return n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }); };
+
+  function calculer() {
+    var net = (nombre("id_poids_brut") - nombre("id_tare")) * (1 - nombre("id_refaction") / 100);
+    var prix = $("id_prix_kg").value ? nombre("id_prix_kg") : (prixCampagnes[$("id_campagne").value] || 0);
+    net = Math.max(net, 0);
+    $("calc-net").textContent = fmt(net, 2) + " kg";
+    $("calc-prix").textContent = fmt(prix, 0) + " F/kg";
+    $("calc-montant").textContent = fmt(Math.round(net * prix), 0) + " FCFA";
+  }
+  ["id_poids_brut", "id_tare", "id_refaction", "id_prix_kg", "id_campagne"].forEach(function (id) {
+    $(id).addEventListener("input", calculer);
+    $(id).addEventListener("change", calculer);
+  });
+  calculer();
+
+  // Recharger la liste des parcelles quand le producteur change.
+  $("id_producteur").addEventListener("change", function () {
+    var select = $("id_parcelle");
+    select.innerHTML = '<option value="">---------</option>';
+    if (!this.value) return;
+    fetch("{% url 'producteurs:liste' %}" + this.value + "/parcelles.json")
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        data.parcelles.forEach(function (p) {
+          var o = document.createElement("option"); o.value = p.id; o.textContent = p.libelle; select.appendChild(o);
+        });
+        if (data.parcelles.length === 1) select.value = data.parcelles[0].id;
+      });
+  });
+})();
+</script>
+{% endblock %}

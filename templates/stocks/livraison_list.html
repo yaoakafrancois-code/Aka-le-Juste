@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block titre %}Livraisons{% endblock %}
+{% block contenu %}
+<div class="titre-page"><h1>Livraisons</h1><a class="btn" href="{% url 'stocks:livraison_creer' %}">+ Nouvelle livraison</a></div>
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ q }}" placeholder="N°, exportateur, camion…"></label>
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+<div class="grille"><div class="indicateur"><div class="libelle">Poids total livré</div><div class="valeur">{{ total_poids|floatformat:"0g" }} kg</div></div></div>
+<div class="tableau-conteneur"><table>
+  <thead><tr><th>N°</th><th>Date</th><th>Exportateur</th><th>Lots</th><th>Camion</th><th class="n">Poids livré (kg)</th><th class="n">Prix</th><th class="n">Montant (F)</th></tr></thead>
+  <tbody>{% for l in object_list %}<tr><td><a href="{{ l.get_absolute_url }}">{{ l.numero }}</a></td><td>{{ l.date|date:"d/m/Y" }}</td><td>{{ l.exportateur }}</td><td>{{ l.lots.all|join:", " }}</td><td>{{ l.immatriculation }}</td><td class="n">{{ l.poids_livre|floatformat:"0g" }}</td><td class="n">{{ l.prix_kg|floatformat:"0g" }}</td><td class="n">{{ l.montant|floatformat:"0g" }}</td></tr>
+  {% empty %}<tr><td colspan="8" class="vide">Aucune livraison.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "_pagination.html" %}
+{% endblock %}

@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block titre %}Stock{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>Stock par magasin</h1>
+  <form class="actions" method="get">{% include "_filtre_campagne.html" %}<a class="btn" href="{% url 'stocks:lot_creer' %}">+ Nouveau lot</a></form>
+</div>
+<div class="grille">
+  <div class="indicateur orange"><div class="libelle">Stock total</div><div class="valeur">{{ total_poids|floatformat:"0g" }} kg</div><div class="detail">{{ total_sacs }} sacs</div></div>
+  <div class="indicateur"><div class="libelle">Valeur d'achat du stock</div><div class="valeur">{{ total_valeur|floatformat:"0g" }} F</div></div>
+  <div class="indicateur vert"><div class="libelle">Lots prêts à livrer</div><div class="valeur">{{ lots_prets|length }}</div></div>
+</div>
+<div class="carte"><table>
+  <thead><tr><th>Magasin</th><th>Localité</th><th class="n">Sacs</th><th class="n">Stock (kg)</th><th class="n">dont hors lot</th><th class="n">Valeur (F)</th><th class="n">Capacité</th><th class="n">Remplissage</th></tr></thead>
+  <tbody>{% for l in lignes %}<tr><td>{{ l.magasin }}</td><td>{{ l.magasin.localite }}</td><td class="n">{{ l.sacs }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td><td class="n">{{ l.hors_lot|floatformat:"0g" }}</td><td class="n">{{ l.valeur|floatformat:"0g" }}</td><td class="n">{{ l.magasin.capacite_kg|default:"–" }}</td><td class="n">{% if l.taux_remplissage is not None %}{{ l.taux_remplissage|floatformat:0 }} %{% else %}–{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="8" class="vide">Aucun magasin. Ajoutez-en dans les paramètres.</td></tr>{% endfor %}</tbody>
+</table></div>
+<div class="carte"><div class="titre-page"><h2>Lots prêts à livrer</h2>{% if lots_prets %}<a class="btn vert" href="{% url 'stocks:livraison_creer' %}">Enregistrer une livraison</a>{% endif %}</div><table>
+  <thead><tr><th>Lot</th><th>Magasin</th><th class="n">Sacs</th><th class="n">Poids (kg)</th></tr></thead>
+  <tbody>{% for lot in lots_prets %}<tr><td><a href="{{ lot.get_absolute_url }}">{{ lot }}</a></td><td>{{ lot.magasin.nom }}</td><td class="n">{{ lot.nombre_sacs }}</td><td class="n">{{ lot.poids_net|floatformat:"0g" }}</td></tr>{% empty %}<tr><td colspan="4" class="vide">Aucun lot fermé.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

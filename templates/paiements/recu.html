@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block titre %}Paiement {{ paiement.numero }}{% endblock %}
+{% block contenu %}
+<div class="actions no-print" style="margin-bottom:1rem">
+  <button class="btn" onclick="window.print()">Imprimer</button>
+  <a class="btn secondaire" href="{{ paiement.producteur.get_absolute_url }}">Fiche producteur</a>
+  <a class="btn secondaire" href="{% url 'paiements:liste' %}">Liste des paiements</a>
+</div>
+<div class="document">
+  <div class="entete-doc">
+    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}</div>
+    <div style="text-align:right"><strong>BON DE PAIEMENT</strong><br>N° {{ paiement.numero }}<br>Date : {{ paiement.date|date:"d/m/Y" }}<br>Campagne : {{ paiement.campagne }}</div>
+  </div>
+  <dl class="fiche">
+    <dt>Producteur</dt><dd>{{ paiement.producteur.nom_complet }} ({{ paiement.producteur.code }})</dd>
+    <dt>Mode de paiement</dt><dd>{{ paiement.get_mode_display }}{% if paiement.reference %} – réf. {{ paiement.reference }}{% endif %}</dd>
+    <dt>Montant payé</dt><dd><strong style="font-size:1.3rem">{{ paiement.montant|floatformat:"0g" }} FCFA</strong></dd>
+    <dt>Solde restant dû</dt><dd>{{ situation.solde|floatformat:"0g" }} FCFA</dd>
+    {% if paiement.observations %}<dt>Observations</dt><dd>{{ paiement.observations }}</dd>{% endif %}
+  </dl>
+  <div class="signatures"><div>Signature du producteur</div><div>Le caissier ({{ paiement.agent|default:"" }})</div></div>
+</div>
+{% endblock %}

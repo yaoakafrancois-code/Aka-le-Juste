@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block titre %}Lots{% endblock %}
+{% block contenu %}
+<div class="titre-page"><h1>Lots</h1><a class="btn" href="{% url 'stocks:lot_creer' %}">+ Nouveau lot</a></div>
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ q }}"></label>
+  <label>Magasin<select name="magasin"><option value="">Tous</option>{% for m in magasins %}<option value="{{ m.pk }}" {% if request.GET.magasin == m.pk|stringformat:"s" %}selected{% endif %}>{{ m.nom }}</option>{% endfor %}</select></label>
+  <label>Statut<select name="statut"><option value="">Tous</option>{% for v, l in statuts %}<option value="{{ v }}" {% if request.GET.statut == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+  {% include "_filtre_campagne.html" %}
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+<div class="tableau-conteneur"><table>
+  <thead><tr><th>Lot</th><th>Date</th><th>Magasin</th><th>Campagne</th><th class="n">Sacs</th><th class="n">Poids (kg)</th><th>Statut</th></tr></thead>
+  <tbody>{% for lot in object_list %}<tr><td><a href="{{ lot.get_absolute_url }}">{{ lot.numero }}</a></td><td>{{ lot.date_creation|date:"d/m/Y" }}</td><td>{{ lot.magasin.nom }}</td><td>{{ lot.campagne }}</td><td class="n">{{ lot.sacs|default:0 }}</td><td class="n">{{ lot.poids|default:0|floatformat:"0g" }}</td><td>{% include "stocks/_badge_lot.html" %}</td></tr>
+  {% empty %}<tr><td colspan="7" class="vide">Aucun lot.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% include "_pagination.html" %}
+{% endblock %}
