@@ -13,6 +13,16 @@ Il fonctionne de deux façons, avec le même code :
 - **Tablette et smartphone Android** : l'interface s'adapte aux petits écrans et s'installe sur l'écran
   d'accueil. La tablette se connecte à l'ordinateur de la coopérative par le Wi-Fi, ou au serveur web.
 
+## Installer CacaoCoop
+
+**Suivez le [guide d'installation](GUIDE_INSTALLATION.md).** En résumé :
+
+1. Sur la page **Releases** du dépôt, téléchargez `Installer-CacaoCoop.exe` (Windows),
+   `CacaoCoop-android.apk` (tablettes et smartphones) ou `CacaoCoop-portable-windows.zip` (clé USB).
+2. Sur l'ordinateur principal, double-cliquez sur `Installer-CacaoCoop.exe`. Au premier démarrage, un assistant
+   vous demande la coopérative, le compte administrateur, la campagne et le premier magasin.
+3. Sur les tablettes, installez l'APK et tapez l'adresse affichée par « CacaoCoop - réseau (tablettes) ».
+
 ## Fonctionnalités
 
 | Module | Ce qu'il fait |
@@ -74,8 +84,8 @@ Le fichier `LISEZMOI.txt` du dossier explique chaque lanceur.
 
 1. Sur l'ordinateur de la coopérative, lancez `CacaoCoop - reseau (tablettes).bat` (ou `lancer.py --reseau`).
    L'adresse à utiliser s'affiche, par exemple `http://192.168.1.10:8000`.
-2. Sur la tablette, connectée au **même Wi-Fi**, ouvrez cette adresse dans Chrome.
-3. Menu ⋮ → **Ajouter à l'écran d'accueil** : CacaoCoop s'ouvre ensuite comme une application.
+2. Sur la tablette, connectée au **même Wi-Fi**, installez l'application `CacaoCoop-android.apk`, ouvrez-la et tapez
+   cette adresse. Sans l'application, ouvrez l'adresse dans Chrome, puis menu ⋮ → **Ajouter à l'écran d'accueil**.
 
 **Pesées sans réseau, au champ : menu Achats → Collecte terrain.**
 
@@ -156,6 +166,19 @@ Pour utiliser PostgreSQL plutôt que SQLite : `CACAO_DB_ENGINE=postgresql` et `C
 `config/settings.py`.
 
 ## Développement
+
+Fabriquer les paquets d'installation (ils sont aussi produits automatiquement par GitHub Actions) :
+
+```sh
+python outils/construire_portable.py --installateur   # zip portable + Installer-CacaoCoop.exe (NSIS requis)
+gradle -p android assembleRelease                       # application Android (SDK Android requis)
+git tag v1.0.1 && git push origin v1.0.1                # publie une nouvelle version sur la page Releases
+```
+
+La version affichée vient du fichier `VERSION`. L'APK est signé avec `android/app/cacaocoop.keystore`, une clé
+publique du dépôt, pour que les mises à jour s'installent sans désinstaller l'application. Pour une clé privée,
+définissez dans les secrets du dépôt `CACAO_KEYSTORE_BASE64`, `CACAO_KEYSTORE_PASSWORD`, `CACAO_KEY_ALIAS` et
+`CACAO_KEY_PASSWORD`. Attention : changer de clé oblige à réinstaller l'application sur chaque tablette.
 
 ```sh
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
