@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block titre %}Connaissement {{ livraison.numero_connaissement|default:livraison.numero }}{% endblock %}
+{% block contenu %}
+<div class="actions no-print" style="margin-bottom:1rem">
+  <button class="btn" onclick="window.print()">Imprimer</button>
+  <a class="btn secondaire" href="{{ livraison.get_absolute_url }}">Retour</a>
+</div>
+{% for exemplaire in exemplaires %}
+<div class="document connaissement{% if not forloop.first %} saut-page{% endif %}">
+  <div class="entete-doc">
+    <div><strong>{{ cooperative.nom }}</strong>{% if cooperative.sigle %} ({{ cooperative.sigle }}){% endif %}<br>
+      {% if cooperative.code_ccc %}Code CCC : {{ cooperative.code_ccc }}<br>{% endif %}
+      {% if cooperative.numero_agrement %}Agrément : {{ cooperative.numero_agrement }}<br>{% endif %}
+      {{ cooperative.region }}{% if cooperative.departement %} – {{ cooperative.departement }}{% endif %}{% if cooperative.sous_prefecture %} – {{ cooperative.sous_prefecture }}{% endif %}<br>
+      {{ cooperative.telephone }}</div>
+    <div style="text-align:right"><strong>CONNAISSEMENT – FICHE DE SUIVI DU PRODUIT</strong><br>
+      N° connaissement : <strong>{{ livraison.numero_connaissement|default:"……………………" }}</strong><br>
+      Réf. interne : {{ livraison.numero }}<br>Campagne : {{ campagne|default:"–" }}<br>Date d'expédition : {{ livraison.date|date:"d/m/Y" }}
+      {% if exemplaire %}<br><span class="badge">Exemplaire : {{ exemplaire }}</span>{% endif %}</div>
+  </div>
+
+  <div class="grille-doc">
+    <section><h3>Expéditeur</h3><dl class="fiche">
+      <dt>Coopérative</dt><dd>{{ cooperative.nom }}</dd>
+      <dt>Magasin(s) de chargement</dt><dd>{{ magasins|join:", " }}</dd>
+      <dt>Producteurs d'origine</dt><dd>{{ nombre_producteurs }} (voir annexe)</dd>
+    </dl></section>
+    <section><h3>Destinataire</h3><dl class="fiche">
+      <dt>Exportateur</dt><dd>{{ livraison.exportateur.nom }}</dd>
+      {% if livraison.exportateur.code_ccc or livraison.exportateur.numero_agrement %}<dt>Code / agrément</dt><dd>{{ livraison.exportateur.code_ccc|default:"" }} {{ livraison.exportateur.numero_agrement }}</dd>{% endif %}
+      <dt>Destination</dt><dd>{{ livraison.get_destination_display }} {{ livraison.adresse_destination }}</dd>
+    </dl></section>
+  </div>
+
+  <h3>Produit</h3>
+  <table>
+    <thead><tr><th>Produit</th><th>Type</th><th>Certificat</th><th>Grade</th><th class="n">Sacs</th><th class="n">Poids brut (kg)</th><th class="n">Poids net (kg)</th></tr></thead>
+    <tbody><tr><td>Fèves de cacao</td><td>{{ livraison.type_produit }}</td><td>{{ programme.numero_certificat|default:"–" }}</td><td>{{ livraison.grade|default:"–" }}</td>
+      <td class="n">{{ livraison.nombre_sacs|default:livraison.sacs_lots }}</td><td class="n">{{ livraison.poids_brut|floatformat:"2g"|default:"–" }}</td><td class="n"><strong>{{ livraison.poids_livre|floatformat:"2g" }}</strong></td></tr></tbody>
+  </table>
+  <table style="margin-top:.6rem">
+    <thead><tr><th>Lot</th><th>Magasin</th><th class="n">Humidité</th><th class="n">Grainage</th><th class="n">Moisies</th><th class="n">Ardoisées</th><th class="n">Défauts</th><th>Grade</th><th class="n">Poids (kg)</th></tr></thead>
+    <tbody>{% for lot in lots %}<tr><td>{{ lot.numero }}</td><td>{{ lot.magasin.nom }}</td><td class="n">{{ lot.humidite|default:"–" }} %</td><td class="n">{{ lot.grainage|default:"–" }}</td><td class="n">{{ lot.taux_moisi|default:"–" }} %</td><td class="n">{{ lot.taux_ardoise|default:"–" }} %</td><td class="n">{{ lot.taux_defauts|default:"–" }} %</td><td>{{ lot.get_grade_display|default:"–" }}</td><td class="n">{{ lot.poids_net|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+  </table>
+
+  <div class="grille-doc">
+    <section><h3>Transport</h3><dl class="fiche">
+      <dt>Transporteur</dt><dd>{{ livraison.transporteur|default:"……………" }}</dd>
+      <dt>Camion</dt><dd>{{ livraison.immatriculation|default:"……………" }}{% if livraison.immatriculation_remorque %} / remorque {{ livraison.immatriculation_remorque }}{% endif %}</dd>
+      <dt>Chauffeur</dt><dd>{{ livraison.chauffeur|default:"……………" }}</dd>
+      <dt>Permis n°</dt><dd>{{ livraison.permis_chauffeur|default:"……………" }}</dd>
+      <dt>Téléphone</dt><dd>{{ livraison.telephone_chauffeur|default:"……………" }}</dd>
+    </dl></section>
+    <section><h3>Réception chez l'exportateur</h3><dl class="fiche">
+      <dt>Date d'arrivée</dt><dd>……………</dd>
+      <dt>Ticket de pesée</dt><dd>{{ livraison.numero_ticket_pesee|default:"……………" }}</dd>
+      <dt>Poids net reconnu</dt><dd>{% if livraison.poids_reconnu is not None %}{{ livraison.poids_reconnu|floatformat:"2g" }} kg{% else %}…………… kg{% endif %}</dd>
+      <dt>Sacs reçus</dt><dd>……………</dd>
+      <dt>Réserves</dt><dd>……………</dd>
+    </dl></section>
+  </div>
+
+  <div class="signatures trois"><div>Pour la coopérative<br>(nom, cachet)</div><div>Le chauffeur</div><div>Pour l'exportateur<br>(nom, cachet)</div></div>
+</div>
+{% endfor %}
+
+<div class="document saut-page">
+  <div class="entete-doc"><div><strong>{{ cooperative.nom }}</strong></div>
+    <div style="text-align:right"><strong>ANNEXE – TRAÇABILITÉ DES PRODUCTEURS</strong><br>Connaissement {{ livraison.numero_connaissement|default:livraison.numero }} – {{ livraison.type_produit }}</div></div>
+  <table class="compact">
+    <thead><tr><th>#</th><th>Code</th><th>Carte producteur</th><th>Producteur</th><th>Village</th><th>Parcelle</th><th>GPS</th><th class="n">Sacs</th><th class="n">Poids (kg)</th></tr></thead>
+    <tbody>{% for p in annexe %}<tr><td>{{ forloop.counter }}</td><td>{{ p.achat__producteur__code }}</td><td>{{ p.achat__producteur__numero_carte_ccc|default:"–" }}</td><td>{{ p.achat__producteur__nom }} {{ p.achat__producteur__prenoms }}</td><td>{{ p.achat__producteur__village }}</td><td>{{ p.achat__parcelle__code|default:"–" }}</td><td>{% if p.achat__parcelle__latitude %}{{ p.achat__parcelle__latitude }}, {{ p.achat__parcelle__longitude }}{% else %}–{% endif %}</td><td class="n">{{ p.sacs }}</td><td class="n">{{ p.poids|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+    <tfoot><tr><td colspan="8">Total</td><td class="n">{{ livraison.poids_lots|floatformat:"2g" }}</td></tr></tfoot>
+  </table>
+</div>
+{% endblock %}

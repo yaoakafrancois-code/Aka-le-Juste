@@ -1,0 +1,57 @@
+name: Tests et version portable
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements.txt
+      - run: python manage.py makemigrations --check --dry-run
+      - run: python manage.py test tests
+
+  portable:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python outils/construire_portable.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CacaoCoop-portable-windows
+          path: dist/CacaoCoop-portable-windows.zip
+          retention-days: 30
+
+  verifier-windows:
+    needs: portable
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: CacaoCoop-portable-windows
+      - name: Démarrer la version portable avec son propre Python
+        shell: pwsh
+        run: |
+          Expand-Archive CacaoCoop-portable-windows.zip -DestinationPath .
+          cd CacaoCoop
+          .\python\python.exe manage.py migrate -v 0
+          .\python\python.exe manage.py init_coop --demo
+          $env:DJANGO_SUPERUSER_PASSWORD = "verification-123"
+          .\python\python.exe manage.py createsuperuser --noinput --username admin --email admin@example.com
+          $serveur = Start-Process -PassThru -NoNewWindow .\python\python.exe -ArgumentList "lancer.py","--sans-navigateur","--port","8000"
+          Start-Sleep -Seconds 8
+          $r = Invoke-WebRequest http://127.0.0.1:8000/connexion/ -UseBasicParsing
+          if ($r.StatusCode -ne 200) { throw "Page de connexion inaccessible" }
+          $c = Invoke-WebRequest http://127.0.0.1:8000/static/css/app.css -UseBasicParsing
+          if ($c.StatusCode -ne 200) { throw "Fichiers statiques inaccessibles" }
+          Stop-Process -Id $serveur.Id
+          Write-Output "Version portable OK sous Windows"

@@ -4,12 +4,18 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block titre %}CacaoCoop{% endblock %} · {{ cooperative }}</title>
+  <meta name="theme-color" content="#3e2619">
+  <link rel="manifest" href="{% url 'core:manifeste' %}">
+  <link rel="icon" href="{% static 'icones/icone-192.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icones/icone-192.png' %}">
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
 <body>
 {% if user.is_authenticated %}
 <header class="entete">
   <a class="marque" href="{% url 'core:tableau_de_bord' %}">CacaoCoop<small>{{ cooperative }}</small></a>
+  <a class="btn-pesee-mobile" href="{% url 'achats:creer' %}">+ Pesée</a>
+  <button class="burger" type="button" aria-label="Menu" aria-expanded="false" onclick="var o=document.body.classList.toggle('menu-ouvert');this.setAttribute('aria-expanded',o)">☰</button>
   <nav class="menu">
     <a href="{% url 'core:tableau_de_bord' %}">Tableau de bord</a>
     <details><summary>Producteurs ▾</summary><div>
@@ -17,9 +23,15 @@
       <a href="{% url 'producteurs:creer' %}">Nouveau producteur</a>
       <a href="{% url 'producteurs:parcelles' %}">Parcelles / traçabilité</a>
     </div></details>
+    <details><summary>Certification ▾</summary><div>
+      <a href="{% url 'producteurs:certifications' %}">Production certifiée (RA, ARS 1000)</a>
+      <a href="{% url 'producteurs:certification_creer' %}">Certifier un producteur</a>
+      {% if user.is_staff %}<a href="{% url 'admin:producteurs_programme_changelist' %}">Programmes et primes</a>{% endif %}
+    </div></details>
     <details><summary>Achats ▾</summary><div>
       <a href="{% url 'achats:creer' %}">Nouvelle pesée</a>
       <a href="{% url 'achats:liste' %}">Journal des achats</a>
+      {% if user.is_staff %}<a href="{% url 'admin:core_prixdujour_changelist' %}">Prix du jour</a>{% endif %}
     </div></details>
     <details><summary>Paiements ▾</summary><div>
       <a href="{% url 'paiements:situation' %}">Situation des producteurs</a>
@@ -30,7 +42,7 @@
     <details><summary>Stocks ▾</summary><div>
       <a href="{% url 'stocks:stock' %}">Stock par magasin</a>
       <a href="{% url 'stocks:lots' %}">Lots</a>
-      <a href="{% url 'stocks:livraisons' %}">Livraisons</a>
+      <a href="{% url 'stocks:livraisons' %}">Expéditions / connaissements</a>
     </div></details>
     <a href="{% url 'core:rapports' %}">Rapports</a>
     {% if user.is_staff %}<a href="{% url 'admin:index' %}">Paramètres</a>{% endif %}
@@ -41,7 +53,7 @@
   </div>
 </header>
 {% if campagne_active %}
-<div class="bandeau-campagne">Campagne active : <strong>{{ campagne_active }}</strong> — prix bord champ {{ campagne_active.prix_kg|floatformat:0 }} FCFA/kg</div>
+<div class="bandeau-campagne">Campagne active : <strong>{{ campagne_active }}</strong> — prix fixé {{ campagne_active.prix_kg|floatformat:"0g" }} FCFA/kg{% if prix_du_jour and prix_du_jour != campagne_active.prix_kg %} — <strong>prix du jour {{ prix_du_jour|floatformat:"0g" }} FCFA/kg</strong>{% endif %}</div>
 {% else %}
 <div class="bandeau-campagne alerte">Aucune campagne active. {% if user.is_staff %}<a href="{% url 'admin:core_campagne_add' %}">Créer une campagne</a>{% else %}Contactez l'administrateur.{% endif %}</div>
 {% endif %}
@@ -51,6 +63,7 @@
   {% block contenu %}{% endblock %}
 </main>
 <script>
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("{% url 'core:service_worker' %}").catch(function () {});
   // Fermer les menus déroulants quand on clique ailleurs.
   document.addEventListener("click", function (e) {
     document.querySelectorAll(".menu details[open]").forEach(function (d) { if (!d.contains(e.target)) d.removeAttribute("open"); });

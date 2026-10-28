@@ -1,32 +1,34 @@
 {% extends "base.html" %}
-{% block titre %}Livraison {{ object.numero }}{% endblock %}
+{% block titre %}Expédition {{ object.numero }}{% endblock %}
 {% block contenu %}
-<div class="actions no-print" style="margin-bottom:1rem">
-  <button class="btn" onclick="window.print()">Imprimer le bordereau</button>
-  <a class="btn secondaire" href="{% url 'stocks:livraison_modifier' object.pk %}">Modifier</a>
-  <a class="btn danger" href="{% url 'stocks:livraison_supprimer' object.pk %}">Supprimer</a>
-</div>
-<div class="document">
-  <div class="entete-doc">
-    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}</div>
-    <div style="text-align:right"><strong>BORDEREAU DE LIVRAISON</strong><br>N° {{ object.numero }}<br>Date : {{ object.date|date:"d/m/Y" }}</div>
+<div class="titre-page">
+  <h1>Expédition {{ object.numero }}</h1>
+  <div class="actions">
+    <a class="btn" href="{% url 'stocks:connaissement' object.pk %}">Imprimer le connaissement</a>
+    <a class="btn secondaire" href="{% url 'stocks:connaissement' object.pk %}?exemplaires=1">4 exemplaires</a>
+    <a class="btn secondaire" href="{% url 'stocks:livraison_tracabilite' object.pk %}">Traçabilité (CSV)</a>
+    <a class="btn secondaire" href="{% url 'stocks:livraison_modifier' object.pk %}">Modifier / saisir la réception</a>
+    <a class="btn danger" href="{% url 'stocks:livraison_supprimer' object.pk %}">Supprimer</a>
   </div>
-  <dl class="fiche">
-    <dt>Exportateur</dt><dd>{{ object.exportateur }}{% if object.exportateur.numero_agrement %} (agrément {{ object.exportateur.numero_agrement }}){% endif %}</dd>
-    <dt>Transporteur</dt><dd>{{ object.transporteur|default:"–" }} · {{ object.immatriculation|default:"–" }}</dd>
-    <dt>Bordereau / connaissement</dt><dd>{{ object.numero_bordereau|default:"–" }}</dd>
-  </dl>
-  <table style="margin-top:1rem">
-    <thead><tr><th>Lot</th><th>Magasin</th><th class="n">Sacs</th><th class="n">Poids en stock (kg)</th></tr></thead>
-    <tbody>{% for lot in object.lots.all %}<tr><td><a href="{{ lot.get_absolute_url }}">{{ lot }}</a></td><td>{{ lot.magasin.nom }}</td><td class="n">{{ lot.nombre_sacs }}</td><td class="n">{{ lot.poids_net|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
-    <tfoot>
-      <tr><td colspan="3">Poids des lots</td><td class="n">{{ object.poids_lots|floatformat:"2g" }}</td></tr>
-      <tr><td colspan="3">Poids reconnu à la livraison</td><td class="n">{{ object.poids_livre|floatformat:"2g" }}</td></tr>
-      <tr><td colspan="3">Écart (perte de poids)</td><td class="n {% if object.ecart_poids < 0 %}negatif{% endif %}">{{ object.ecart_poids|floatformat:"2g" }}</td></tr>
-      <tr><td colspan="3">Montant de la vente ({{ object.prix_kg|floatformat:"0g" }} F/kg)</td><td class="n">{{ object.montant|floatformat:"0g" }} F</td></tr>
-    </tfoot>
-  </table>
-  {% if object.observations %}<p>{{ object.observations|linebreaksbr }}</p>{% endif %}
-  <div class="signatures"><div>Pour la coopérative</div><div>Pour l'acheteur / le transporteur</div></div>
+</div>
+<div class="grille">
+  <div class="indicateur"><div class="libelle">Connaissement</div><div class="valeur" style="font-size:1.1rem">{{ object.numero_connaissement|default:"À renseigner" }}</div><div class="detail">{{ object.date|date:"d/m/Y" }} · {{ object.get_destination_display }}</div></div>
+  <div class="indicateur"><div class="libelle">Exportateur</div><div class="valeur" style="font-size:1.1rem">{{ object.exportateur }}</div></div>
+  <div class="indicateur vert"><div class="libelle">Produit</div><div class="valeur" style="font-size:1.1rem">{{ object.type_produit }}</div><div class="detail">{{ object.grade|default:"Grade non déterminé" }}</div></div>
+  <div class="indicateur orange"><div class="libelle">Poids net expédié</div><div class="valeur">{{ object.poids_livre|floatformat:"0g" }} kg</div><div class="detail">{{ object.nombre_sacs|default:"–" }} sacs</div></div>
+  <div class="indicateur {% if object.ecart_poids < 0 %}rouge{% endif %}"><div class="libelle">{% if object.poids_reconnu is not None %}Reconnu à l'arrivée{% else %}Réception non saisie{% endif %}</div><div class="valeur">{{ object.poids_final|floatformat:"0g" }} kg</div><div class="detail">Écart / stock : {{ object.ecart_poids|floatformat:"2g" }} kg · {{ object.montant|floatformat:"0g" }} F</div></div>
+</div>
+<div class="grille-2">
+  <div class="carte"><h2>Transport</h2><dl class="fiche">
+    <dt>Transporteur</dt><dd>{{ object.transporteur|default:"–" }}</dd>
+    <dt>Camion / remorque</dt><dd>{{ object.immatriculation|default:"–" }} / {{ object.immatriculation_remorque|default:"–" }}</dd>
+    <dt>Chauffeur</dt><dd>{{ object.chauffeur|default:"–" }} {% if object.permis_chauffeur %}(permis {{ object.permis_chauffeur }}){% endif %} {{ object.telephone_chauffeur }}</dd>
+    <dt>Destination</dt><dd>{{ object.get_destination_display }} {{ object.adresse_destination }}</dd>
+    <dt>Ticket de pesée</dt><dd>{{ object.numero_ticket_pesee|default:"–" }}</dd>
+  </dl></div>
+  <div class="carte"><h2>Lots</h2><table>
+    <thead><tr><th>Lot</th><th>Magasin</th><th>Grade</th><th class="n">Poids (kg)</th></tr></thead>
+    <tbody>{% for lot in object.lots.all %}<tr><td><a href="{{ lot.get_absolute_url }}">{{ lot }}</a></td><td>{{ lot.magasin.nom }}</td><td>{{ lot.get_grade_display|default:"–" }}</td><td class="n">{{ lot.poids_net|floatformat:"2g" }}</td></tr>{% endfor %}</tbody>
+  </table></div>
 </div>
 {% endblock %}

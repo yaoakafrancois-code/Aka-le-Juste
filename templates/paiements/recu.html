@@ -18,6 +18,6 @@
     <dt>Solde restant dû</dt><dd>{{ situation.solde|floatformat:"0g" }} FCFA</dd>
     {% if paiement.observations %}<dt>Observations</dt><dd>{{ paiement.observations }}</dd>{% endif %}
   </dl>
-  <div class="signatures"><div>Signature du producteur</div><div>Le caissier ({{ paiement.agent|default:"" }})</div></div>
+  <div class="signatures"><div>Signature du producteur</div><div>Le caissier{% if paiement.agent %} ({{ paiement.agent }}){% endif %}</div></div>
 </div>
 {% endblock %}

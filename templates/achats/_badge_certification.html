@@ -1,0 +1,1 @@
+{% if a.poids_certifie and a.poids_non_certifie %}<span class="badge orange">{{ a.programme.code }} {{ a.poids_certifie|floatformat:"0g" }} kg + conv. {{ a.poids_non_certifie|floatformat:"0g" }} kg</span>{% elif a.poids_certifie %}<span class="badge vert">{{ a.programme.code }}</span>{% else %}<span class="badge gris">Non certifié</span>{% endif %}

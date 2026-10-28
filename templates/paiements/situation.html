@@ -17,18 +17,18 @@
   </select></label>
   <button class="btn" type="submit">Filtrer</button>
 </form>
-<p class="aide" style="color:var(--doux)">Solde = achats + primes − paiements − avances. Un solde positif est dû au producteur ; un solde négatif est une avance à récupérer sur ses prochaines livraisons.</p>
+<p class="aide" style="color:var(--doux)">Solde = achats + primes (dont primes de certification des reçus) − paiements − avances. Un solde positif est dû au producteur ; un solde négatif est une avance à récupérer sur ses prochaines livraisons.</p>
 <div class="tableau-conteneur"><table>
-  <thead><tr><th>Code</th><th>Producteur</th><th>Section</th><th class="n">Poids (kg)</th><th class="n">Achats</th><th class="n">Primes</th><th class="n">Paiements</th><th class="n">Avances</th><th class="n">Solde</th><th class="no-print"></th></tr></thead>
+  <thead><tr><th>Code</th><th>Producteur</th><th>Section</th><th class="n">Poids (kg)</th><th class="n">dont certifié</th><th class="n">Achats</th><th class="n">Primes</th><th class="n">Paiements</th><th class="n">Avances</th><th class="n">Solde</th><th class="no-print"></th></tr></thead>
   <tbody>
   {% for p in lignes %}
   <tr><td>{{ p.code }}</td><td><a href="{{ p.get_absolute_url }}">{{ p.nom_complet }}</a></td><td>{{ p.section|default:"–" }}</td>
-    <td class="n">{{ p.total_poids|floatformat:"0g" }}</td><td class="n">{{ p.total_achats|floatformat:"0g" }}</td><td class="n">{{ p.total_primes|floatformat:"0g" }}</td>
+    <td class="n">{{ p.total_poids|floatformat:"0g" }}</td><td class="n">{{ p.total_poids_certifie|floatformat:"0g" }}</td><td class="n">{{ p.total_achats|floatformat:"0g" }}</td><td class="n">{{ p.total_primes|floatformat:"0g" }}</td>
     <td class="n">{{ p.total_paiements|floatformat:"0g" }}</td><td class="n">{{ p.total_avances|floatformat:"0g" }}</td>
     <td class="n {% if p.solde > 0 %}positif{% elif p.solde < 0 %}negatif{% endif %}">{{ p.solde|floatformat:"0g" }}</td>
     <td class="no-print">{% if p.solde > 0 %}<a class="btn petit vert" href="{% url 'paiements:creer' %}?producteur={{ p.pk }}">Payer</a>{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="10" class="vide">Aucun producteur.</td></tr>{% endfor %}
+  {% empty %}<tr><td colspan="11" class="vide">Aucun producteur.</td></tr>{% endfor %}
   </tbody>
-  <tfoot><tr><td colspan="3">Total ({{ lignes|length }} producteurs)</td><td class="n">{{ totaux.total_poids|floatformat:"0g" }}</td><td class="n">{{ totaux.total_achats|floatformat:"0g" }}</td><td class="n">{{ totaux.total_primes|floatformat:"0g" }}</td><td class="n">{{ totaux.total_paiements|floatformat:"0g" }}</td><td class="n">{{ totaux.total_avances|floatformat:"0g" }}</td><td class="n">{{ totaux.solde|floatformat:"0g" }}</td><td class="no-print"></td></tr></tfoot>
+  <tfoot><tr><td colspan="3">Total ({{ lignes|length }} producteurs)</td><td class="n">{{ totaux.total_poids|floatformat:"0g" }}</td><td class="n">{{ totaux.total_poids_certifie|floatformat:"0g" }}</td><td class="n">{{ totaux.total_achats|floatformat:"0g" }}</td><td class="n">{{ totaux.total_primes|floatformat:"0g" }}</td><td class="n">{{ totaux.total_paiements|floatformat:"0g" }}</td><td class="n">{{ totaux.total_avances|floatformat:"0g" }}</td><td class="n">{{ totaux.solde|floatformat:"0g" }}</td><td class="no-print"></td></tr></tfoot>
 </table></div>
 {% endblock %}

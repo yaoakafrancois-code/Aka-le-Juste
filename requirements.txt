@@ -1,3 +1,4 @@
 Django==5.1.4
 whitenoise==6.8.2
 waitress==3.0.2
+tzdata==2024.2

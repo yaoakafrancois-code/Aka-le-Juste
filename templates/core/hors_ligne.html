@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titre %}Hors connexion{% endblock %}
+{% block contenu %}
+<div class="carte connexion">
+  <h1>Serveur injoignable</h1>
+  <p>La tablette ou le téléphone n'arrive pas à joindre l'ordinateur de la coopérative.</p>
+  <ul>
+    <li>Vérifiez que vous êtes connecté au Wi-Fi de la coopérative.</li>
+    <li>Vérifiez que CacaoCoop est démarré sur l'ordinateur (avec l'option réseau).</li>
+  </ul>
+  <button class="btn" onclick="location.reload()">Réessayer</button>
+</div>
+{% endblock %}

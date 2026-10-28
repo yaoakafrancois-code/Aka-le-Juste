@@ -8,8 +8,9 @@ from django.test import TestCase, override_settings
 from achats.models import Achat
 from core.models import Campagne, Magasin, Section
 from paiements.models import Avance, Paiement, Prime, situation_producteur
-from producteurs.models import Parcelle, Producteur
-from stocks.models import Exportateur, Livraison, Lot, stock_par_magasin
+from core.models import PrixDuJour
+from producteurs.models import CertificationProducteur, Parcelle, Producteur, Programme
+from stocks.models import Exportateur, LigneLot, Livraison, Lot, stock_par_magasin
 
 
 class Donnees(TestCase):
@@ -69,11 +70,82 @@ class CalculsTests(Donnees):
 
     def test_stock_exclut_lots_livres(self):
         a1, a2 = self.achat(), self.achat()
-        lot = Lot.objects.create(magasin=self.magasin, campagne=self.campagne, statut="livre")
-        Achat.objects.filter(pk=a1.pk).update(lot=lot)
+        lot = Lot.objects.create(magasin=self.magasin, campagne=self.campagne)
+        LigneLot.placer(lot, a1)
+        Lot.objects.filter(pk=lot.pk).update(statut="livre")
         ligne = next(l for l in stock_par_magasin() if l["magasin"] == self.magasin)
         self.assertEqual(ligne["poids"], a2.poids_net)
+        self.assertEqual(ligne["non_certifie"], a2.poids_net)
         self.assertEqual(ligne["taux_remplissage"], Decimal("1"))
+
+    def test_prix_du_jour(self):
+        PrixDuJour.objects.create(campagne=self.campagne, date=date(2026, 10, 15), prix_kg=Decimal("2900"))
+        PrixDuJour.objects.create(campagne=self.campagne, date=date(2026, 10, 15), magasin=self.autre_magasin,
+                                  prix_kg=Decimal("2950"))
+        a = self.achat()
+        self.assertEqual((a.prix_kg, a.source_prix), (Decimal("2900"), "jour"))
+        self.assertEqual(self.achat(magasin=self.autre_magasin).prix_kg, Decimal("2950"))
+        self.assertEqual(self.achat(date=date(2026, 10, 16)).source_prix, "campagne")
+        self.assertEqual(self.achat(prix_kg=Decimal("3000")).source_prix, "manuel")
+
+
+class CertificationTests(Donnees):
+    """Exemple : producteur de 3 ha certifié RA, rendement de référence 500 kg/ha → 1 500 kg certifiables."""
+
+    def setUp(self):
+        self.ra = Programme.objects.create(code="RA", nom="Rainforest Alliance", prime_kg=Decimal("50"),
+                                           rendement_reference_kg_ha=Decimal("500"))
+        Parcelle.objects.filter(pk=self.parcelle.pk).update(superficie_ha=Decimal("3"))
+        self.certif = CertificationProducteur.objects.create(
+            producteur=self.producteur, programme=self.ra, campagne=self.campagne)
+
+    def test_quota_depuis_superficie(self):
+        self.assertEqual(self.certif.quota_kg, Decimal("1500.00"))
+
+    def test_recu_500_kg_certifie(self):
+        a = self.achat(poids_brut=Decimal("505"), tare=Decimal("5"))
+        self.assertEqual((a.poids_certifie, a.poids_non_certifie), (Decimal("500.00"), Decimal("0.00")))
+        self.assertEqual(a.programme, self.ra)
+        self.assertEqual(a.montant, Decimal("1400000"))
+        self.assertEqual(a.montant_prime, Decimal("25000"))
+        self.assertEqual(situation_producteur(self.producteur)["solde"], Decimal("1425000"))
+
+    def test_depassement_du_volume_estime(self):
+        self.achat(poids_brut=Decimal("1203"))  # 1 200 kg certifiés
+        a = self.achat(poids_brut=Decimal("503"))  # 300 restants
+        self.assertEqual((a.poids_certifie, a.poids_non_certifie), (Decimal("300.00"), Decimal("200.00")))
+        a3 = self.achat()
+        self.assertEqual(a3.poids_certifie, 0)
+        self.assertIsNone(a3.programme)
+
+    def test_producteur_en_conversion_ou_force_non_certifie(self):
+        self.assertEqual(self.achat(vendre_non_certifie=True).poids_certifie, 0)
+        CertificationProducteur.objects.filter(pk=self.certif.pk).update(statut="conversion")
+        self.assertEqual(self.achat().poids_certifie, 0)
+
+    def test_segregation_des_lots(self):
+        a = self.achat(poids_brut=Decimal("1703"))  # 1 500 certifiés + 200 non certifiés
+        lot_ra = Lot.objects.create(magasin=self.magasin, campagne=self.campagne, programme=self.ra)
+        lot_conv = Lot.objects.create(magasin=self.magasin, campagne=self.campagne)
+        LigneLot.placer(lot_ra, a)
+        LigneLot.placer(lot_conv, a)
+        self.assertEqual(lot_ra.poids_net, Decimal("1500.00"))
+        self.assertEqual(lot_conv.poids_net, Decimal("200.00"))
+        self.assertIsNone(LigneLot.placer(lot_ra, a))  # plus rien à placer
+        self.assertTrue(lot_ra.numero.startswith("LOT-M01-RA-"))
+        with self.assertRaises(Exception):
+            Livraison.verifier_lots([lot_ra, lot_conv])
+
+    def test_grade_calcule(self):
+        lot = Lot.objects.create(magasin=self.magasin, campagne=self.campagne, taux_moisi=Decimal("2"),
+                                 taux_ardoise=Decimal("3"), taux_defauts=Decimal("1"), humidite=Decimal("7"))
+        self.assertEqual(lot.grade, "grade1")
+        lot.taux_ardoise = Decimal("7")
+        lot.save()
+        self.assertEqual(lot.grade, "grade2")
+        lot.humidite = Decimal("9")
+        lot.save()
+        self.assertEqual(lot.grade, "hors_standard")
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
@@ -135,7 +207,7 @@ class VuesTests(Donnees):
         a_autre_magasin = self.achat(magasin=self.autre_magasin)
         lot = Lot.objects.create(magasin=self.magasin, campagne=self.campagne)
         self.client.post(f"/stocks/lots/{lot.pk}/achats/", {"achats": [a1.pk, a_autre_magasin.pk]})
-        self.assertEqual(list(lot.achats.all()), [a1])  # l'achat d'un autre magasin est ignoré
+        self.assertEqual([l.achat for l in lot.lignes.all()], [a1])  # l'achat d'un autre magasin est ignoré
         self.client.post(f"/stocks/lots/{lot.pk}/statut/", {"statut": "ferme"})
         lot.refresh_from_db()
         self.assertEqual(lot.statut, "ferme")
@@ -143,14 +215,18 @@ class VuesTests(Donnees):
         exportateur = Exportateur.objects.create(nom="Export SA")
         self.client.post("/stocks/livraisons/nouvelle/", {
             "date": "2026-11-01", "exportateur": exportateur.pk, "lots": [lot.pk],
-            "poids_livre": "99.5", "prix_kg": "2950",
+            "poids_livre": "99.5", "prix_kg": "2950", "destination": "abidjan", "numero_connaissement": "CN-1",
         })
         livraison = Livraison.objects.get()
         lot.refresh_from_db()
         self.assertEqual(lot.statut, "livre")
         self.assertEqual(livraison.ecart_poids, Decimal("-0.50"))
+        self.assertEqual(livraison.nombre_sacs, 1)
+        r = self.client.get(f"/stocks/livraisons/{livraison.pk}/connaissement/")
+        self.assertContains(r, "CN-1")
+        self.assertContains(r, self.producteur.code)
 
-        # Un achat d'un lot livré ne peut plus être modifié.
+        # Un achat placé dans un lot ne peut plus être modifié.
         r = self.client.post(f"/achats/{a1.pk}/modifier/", {
             "date": "2026-10-15", "campagne": self.campagne.pk, "magasin": self.magasin.pk,
             "producteur": self.producteur.pk, "nombre_sacs": 1, "poids_brut": "200", "tare": "3",
@@ -170,7 +246,9 @@ class VuesTests(Donnees):
         for url in ["/", "/rapports/", "/producteurs/", f"/producteurs/{self.producteur.pk}/",
                     "/producteurs/parcelles/", "/achats/", f"/achats/{a.pk}/recu/", "/paiements/situation/",
                     f"/paiements/releve/{self.producteur.pk}/", "/stocks/", "/stocks/lots/", "/stocks/livraisons/",
-                    "/achats/export.csv", "/producteurs/parcelles/export.csv"]:
+                    "/achats/export.csv", "/producteurs/parcelles/export.csv", "/producteurs/certifications/",
+                    "/producteurs/certifications/export.csv", "/stocks/livraisons/export-ccc.csv",
+                    f"/producteurs/{self.producteur.pk}/infos.json", "/manifest.webmanifest", "/sw.js"]:
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
 

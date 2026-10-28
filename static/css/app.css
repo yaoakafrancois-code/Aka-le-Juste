@@ -170,3 +170,48 @@ dl.fiche dd { margin: 0; font-weight: 500; }
   .grille-2 { grid-template-columns: 1fr; }
   .barre { grid-template-columns: 5rem 1fr 5.5rem; }
 }
+
+/* Connaissement */
+.connaissement h3 { font-size: .95rem; margin: 1rem 0 .4rem; text-transform: uppercase; color: var(--brun); letter-spacing: .03em; }
+.grille-doc { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+.signatures.trois div { width: 30%; }
+table.compact th, table.compact td { padding: .3rem .4rem; font-size: .85rem; }
+.document + .document { margin-top: 1.5rem; }
+@media print {
+  .saut-page { page-break-before: always; break-before: page; }
+  .document + .document { margin-top: 0; }
+  .connaissement { font-size: 12px; }
+}
+@media (max-width: 640px) { .grille-doc { grid-template-columns: 1fr; } .document { padding: 1rem; } }
+
+/* Téléphones et tablettes */
+.burger, .btn-pesee-mobile { display: none; }
+@media (max-width: 900px) {
+  .entete { padding: 0 .75rem; gap: .5rem; }
+  .entete .marque small { display: none; }
+  .burger { display: block; margin-left: auto; background: none; border: 1px solid #a88; color: #fff; font-size: 1.4rem;
+            border-radius: 6px; padding: .2rem .7rem; cursor: pointer; }
+  .btn-pesee-mobile { display: inline-block; margin-left: auto; background: var(--orange); color: #fff; text-decoration: none;
+                      padding: .45rem .8rem; border-radius: 6px; font-weight: 600; }
+  .btn-pesee-mobile + .burger { margin-left: 0; }
+  .menu, .utilisateur { display: none; width: 100%; }
+  .menu-ouvert .menu { display: flex; flex-direction: column; padding-bottom: .5rem; }
+  .menu-ouvert .utilisateur { display: flex; padding: .5rem 0 .8rem; }
+  .menu details[open] > div { position: static; box-shadow: none; background: var(--brun); }
+  .menu details > div a { padding-left: 1.5rem; }
+  .titre-page h1 { font-size: 1.25rem; }
+  input, select, textarea { font-size: 16px; } /* évite le zoom automatique sur Android/iOS */
+  .btn { padding: .6rem 1rem; }
+}
+@media (max-width: 640px) {
+  .grille { grid-template-columns: 1fr 1fr; gap: .6rem; }
+  .indicateur .valeur { font-size: 1.15rem; }
+  .formulaire { grid-template-columns: 1fr; }
+  .calcul { gap: 1rem; }
+  .calcul div strong { font-size: 1.1rem; }
+  dl.fiche { grid-template-columns: 1fr; gap: 0 1rem; }
+  dl.fiche dd { margin-bottom: .4rem; }
+  th, td { padding: .4rem; font-size: .9rem; }
+}
+
+[hidden] { display: none !important; }

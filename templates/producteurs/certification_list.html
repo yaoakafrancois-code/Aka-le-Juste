@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block titre %}Certifications{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>Production certifiée{% if campagne %} — {{ campagne }}{% endif %}</h1>
+  <div class="actions">
+    <a class="btn secondaire" href="{% url 'producteurs:certifications_export' %}?{{ request.GET.urlencode }}">Liste des membres (CSV)</a>
+    <a class="btn" href="{% url 'producteurs:certification_creer' %}">+ Certification</a>
+  </div>
+</div>
+<p style="color:var(--doux)">Pour chaque producteur certifié, le volume certifiable de la campagne est sa production estimée
+(superficie certifiée × rendement de référence du programme, ou estimation saisie). Au-delà, le cacao acheté passe
+automatiquement en non certifié : la coopérative ne vend pas plus de cacao certifié qu'elle n'en a produit.</p>
+
+<div class="grille">
+  {% for programme, t in par_programme.items %}
+  <div class="indicateur vert"><div class="libelle">{{ programme }}</div>
+    <div class="valeur">{{ t.achete|floatformat:"0g" }} / {{ t.quota|floatformat:"0g" }} kg</div>
+    <div class="detail">{{ t.producteurs }} producteurs certifiés · {{ t.superficie|floatformat:"1g" }} ha</div></div>
+  {% empty %}
+  <div class="indicateur orange"><div class="libelle">Aucune certification</div><div class="valeur" style="font-size:1rem">Créez les programmes (RA, ARS 1000) dans Paramètres, puis certifiez les producteurs.</div></div>
+  {% endfor %}
+</div>
+
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ request.GET.q }}" placeholder="Producteur, code…"></label>
+  {% include "_filtre_campagne.html" %}
+  <label>Programme<select name="programme"><option value="">Tous</option>{% for p in programmes %}<option value="{{ p.pk }}" {% if request.GET.programme == p.pk|stringformat:"s" %}selected{% endif %}>{{ p.code }}</option>{% endfor %}</select></label>
+  <label>Statut<select name="statut"><option value="">Tous</option>{% for v, l in statuts %}<option value="{{ v }}" {% if request.GET.statut == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+<div class="tableau-conteneur"><table>
+  <thead><tr><th>Programme</th><th>Producteur</th><th>N° membre</th><th>Section</th><th>Statut</th><th class="n">Superficie (ha)</th><th class="n">Production estimée</th><th class="n">Acheté certifié</th><th class="n">Restant</th><th class="n">Taux</th><th></th></tr></thead>
+  <tbody>{% for l in lignes %}
+    <tr><td>{{ l.c.programme.code }}{% if l.c.niveau %} ({{ l.c.get_niveau_display }}){% endif %}</td>
+      <td><a href="{{ l.c.producteur.get_absolute_url }}">{{ l.c.producteur.nom_complet }}</a> <small>{{ l.c.producteur.code }}</small></td>
+      <td>{{ l.c.numero_membre|default:"–" }}</td><td>{{ l.c.producteur.section|default:"–" }}</td>
+      <td>{% if l.c.statut == "certifie" %}<span class="badge vert">{{ l.c.get_statut_display }}</span>{% elif l.c.statut == "conversion" %}<span class="badge orange">{{ l.c.get_statut_display }}</span>{% else %}<span class="badge rouge">{{ l.c.get_statut_display }}</span>{% endif %}</td>
+      <td class="n">{{ l.superficie|floatformat:"2g" }}</td><td class="n">{{ l.quota|floatformat:"0g" }}</td><td class="n">{{ l.achete|floatformat:"0g" }}</td><td class="n">{{ l.restant|floatformat:"0g" }}</td>
+      <td class="n {% if l.taux >= 100 %}negatif{% endif %}">{% if l.taux is not None %}{{ l.taux|floatformat:0 }} %{% else %}–{% endif %}</td>
+      <td><a href="{% url 'producteurs:certification_modifier' l.c.pk %}">Modifier</a></td></tr>
+  {% empty %}<tr><td colspan="11" class="vide">Aucune certification pour cette sélection.</td></tr>{% endfor %}</tbody>
+</table></div>
+{% endblock %}

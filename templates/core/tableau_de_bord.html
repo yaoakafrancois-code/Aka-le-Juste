@@ -9,7 +9,8 @@
 
 <div class="grille">
   <div class="indicateur"><div class="libelle">Cacao acheté</div><div class="valeur">{{ tonnage|floatformat:"0g" }} kg</div><div class="detail">{{ nb_achats }} pesées · {{ nb_producteurs_livreurs }} producteurs livreurs</div></div>
-  <div class="indicateur"><div class="libelle">Valeur des achats</div><div class="valeur">{{ total_achats|floatformat:"0g" }} F</div><div class="detail">+ primes {{ total_primes|floatformat:"0g" }} F</div></div>
+  <div class="indicateur vert"><div class="libelle">dont certifié</div><div class="valeur">{{ tonnage_certifie|floatformat:"0g" }} kg</div><div class="detail">{% for p in par_programme %}{{ p.programme__code }} : {{ p.poids|floatformat:"0g" }} kg{% if not forloop.last %} · {% endif %}{% empty %}Aucun achat certifié{% endfor %}<br>non certifié : {{ tonnage_non_certifie|floatformat:"0g" }} kg</div></div>
+  <div class="indicateur"><div class="libelle">Valeur des achats</div><div class="valeur">{{ total_achats|floatformat:"0g" }} F</div><div class="detail">+ primes (dont certification) {{ total_primes|floatformat:"0g" }} F</div></div>
   <div class="indicateur vert"><div class="libelle">Payé aux producteurs</div><div class="valeur">{{ total_paiements|floatformat:"0g" }} F</div><div class="detail">dont avances {{ total_avances|floatformat:"0g" }} F (en plus)</div></div>
   <div class="indicateur {% if reste_a_payer > 0 %}rouge{% else %}vert{% endif %}"><div class="libelle">Reste à payer</div><div class="valeur">{{ reste_a_payer|floatformat:"0g" }} F</div><div class="detail"><a href="{% url 'paiements:situation' %}?filtre=a_payer">Voir les producteurs à payer</a></div></div>
   <div class="indicateur orange"><div class="libelle">Stock en magasin</div><div class="valeur">{{ stock_total|floatformat:"0g" }} kg</div><div class="detail">Livré : {{ poids_livre|floatformat:"0g" }} kg</div></div>

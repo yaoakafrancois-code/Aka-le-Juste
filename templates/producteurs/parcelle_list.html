@@ -12,17 +12,17 @@
   <label>Recherche<input type="search" name="q" value="{{ q }}" placeholder="Code, producteur, localité…"></label>
   <label>Section<select name="producteur__section"><option value="">Toutes</option>{% for s in sections %}<option value="{{ s.pk }}" {% if request.GET.producteur__section == s.pk|stringformat:"s" %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></label>
   <label>Statut EUDR<select name="statut_eudr"><option value="">Tous</option>{% for v, l in statuts %}<option value="{{ v }}" {% if request.GET.statut_eudr == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
-  <label>Certification<select name="certification"><option value="">Toutes</option>{% for v, l in certifications %}<option value="{{ v }}" {% if request.GET.certification == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+  <label>Périmètre certifié<select name="certifiee"><option value="">Toutes</option><option value="True" {% if request.GET.certifiee == "True" %}selected{% endif %}>Incluses</option><option value="False" {% if request.GET.certifiee == "False" %}selected{% endif %}>Exclues</option></select></label>
   <button class="btn" type="submit">Filtrer</button>
 </form>
 <div class="tableau-conteneur"><table>
-  <thead><tr><th>Code</th><th>Producteur</th><th>Localité</th><th class="n">Superficie (ha)</th><th>GPS</th><th>Polygone</th><th>Certification</th><th>EUDR</th><th></th></tr></thead>
+  <thead><tr><th>Code</th><th>Producteur</th><th>Localité</th><th class="n">Superficie (ha)</th><th>GPS</th><th>Polygone</th><th>Périmètre certifié</th><th>EUDR</th><th></th></tr></thead>
   <tbody>
   {% for pa in object_list %}
   <tr><td>{{ pa.code }}</td><td><a href="{{ pa.producteur.get_absolute_url }}">{{ pa.producteur.nom_complet }}</a></td><td>{{ pa.localite }}</td><td class="n">{{ pa.superficie_ha }}</td>
     <td>{% if pa.geolocalisee %}{{ pa.latitude }}, {{ pa.longitude }}{% else %}<span class="badge orange">Manquant</span>{% endif %}</td>
     <td>{% if pa.polygone_geojson %}<span class="badge vert">Oui</span>{% elif pa.superficie_ha > 4 %}<span class="badge rouge">Requis</span>{% else %}–{% endif %}</td>
-    <td>{{ pa.get_certification_display }}</td><td>{% include "producteurs/_badge_eudr.html" %}</td>
+    <td>{% if pa.certifiee %}Oui{% else %}<span class="badge gris">Exclue</span>{% endif %}</td><td>{% include "producteurs/_badge_eudr.html" %}</td>
     <td><a href="{% url 'producteurs:parcelle_modifier' pa.pk %}">Modifier</a></td></tr>
   {% empty %}<tr><td colspan="9" class="vide">Aucune parcelle.</td></tr>{% endfor %}
   </tbody>

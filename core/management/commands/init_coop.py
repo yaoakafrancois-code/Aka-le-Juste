@@ -13,6 +13,10 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 
 from core.models import Campagne, Cooperative, Magasin, Section
+from producteurs.models import Programme
+
+# Programmes créés par défaut (prime et rendement de référence à ajuster dans les paramètres).
+PROGRAMMES = [("RA", "Rainforest Alliance"), ("ARS1000", "ARS 1000 – Cacao durable")]
 
 # Rôle -> {application: actions autorisées sur tous ses modèles}
 ROLES = {
@@ -54,15 +58,17 @@ class Command(BaseCommand):
 
         if not Cooperative.objects.exists():
             Cooperative.objects.create(nom="Ma coopérative")
+        for code, nom in PROGRAMMES:
+            Programme.objects.get_or_create(code=code, defaults={"nom": nom})
 
         if options["demo"]:
             self.donnees_demo()
 
     def donnees_demo(self):
         from achats.models import Achat
-        from paiements.models import Avance, Paiement, Prime
-        from producteurs.models import Parcelle, Producteur
-        from stocks.models import Exportateur, Livraison, Lot
+        from paiements.models import Avance, Paiement
+        from producteurs.models import CertificationProducteur, Parcelle, Producteur
+        from stocks.models import Exportateur, LigneLot, Livraison, Lot
 
         if Producteur.objects.exists():
             self.stdout.write(self.style.WARNING("Des producteurs existent déjà : données de démo ignorées."))
@@ -70,7 +76,8 @@ class Command(BaseCommand):
 
         rnd = random.Random(42)
         Cooperative.objects.update(
-            nom="Société Coopérative Agricole de Démonstration", sigle="SCOOP-DEMO",
+            nom="Société Coopérative Agricole de Démonstration", sigle="SCOOP-DEMO", code_ccc="CCC-DEMO-0001",
+            numero_agrement="AGR-DEMO-0001", region="Nawa", departement="Soubré", sous_prefecture="Soubré",
             adresse="Soubré, Côte d'Ivoire", telephone="+225 07 00 00 00 00",
         )
         aujourd_hui = date.today()
@@ -79,6 +86,11 @@ class Command(BaseCommand):
             libelle=f"{debut.year}-{debut.year + 1} principale",
             defaults=dict(date_debut=debut, date_fin=date(debut.year + 1, 3, 31), prix_kg=Decimal("2800"), active=True),
         )
+        ra = Programme.objects.get(code="RA")
+        ars = Programme.objects.get(code="ARS1000")
+        Programme.objects.filter(pk=ra.pk).update(prime_kg=Decimal("50"), numero_certificat="RA-DEMO-000123")
+        Programme.objects.filter(pk=ars.pk).update(prime_kg=Decimal("25"), numero_certificat="ARS-DEMO-0045")
+        ra.refresh_from_db()
         sections = [Section.objects.get_or_create(nom=n, defaults={"localite": n})[0]
                     for n in ("Gnamagui", "Okrouyo", "Liliyo")]
         magasins = [
@@ -95,15 +107,21 @@ class Command(BaseCommand):
                 nom=rnd.choice(noms), prenoms=rnd.choice(prenoms), sexe=rnd.choice("HF"),
                 telephone=f"07 {rnd.randint(10, 99)} {rnd.randint(10, 99)} {rnd.randint(10, 99)} {rnd.randint(10, 99)}",
                 section=rnd.choice(sections), village=rnd.choice(["Gnamagui", "Okrouyo", "Liliyo", "Buyo"]),
-                date_adhesion=date(rnd.randint(2010, 2024), 1, 1),
+                date_adhesion=date(rnd.randint(2010, 2024), 1, 1), numero_carte_ccc=f"CI-{rnd.randint(100000, 999999)}",
             )
             for _ in range(rnd.randint(1, 2)):
                 Parcelle.objects.create(
-                    producteur=p, localite=p.village, superficie_ha=Decimal(rnd.randint(10, 60)) / 10,
+                    producteur=p, localite=p.village, superficie_ha=Decimal(rnd.randint(10, 40)) / 10,
                     latitude=Decimal(f"5.{rnd.randint(700000, 999999)}"),
                     longitude=Decimal(f"-6.{rnd.randint(500000, 799999)}"),
-                    certification=rnd.choice(["aucune", "rainforest", "fairtrade"]),
                     statut_eudr=rnd.choice(["conforme", "conforme", "a_verifier"]),
+                )
+            # 8 producteurs certifiés RA, 4 ARS 1000, 2 en conversion, le reste non certifié.
+            if i < 8 or 8 <= i < 12 or 12 <= i < 14:
+                CertificationProducteur.objects.create(
+                    producteur=p, campagne=campagne, programme=ra if i < 8 or i >= 12 else ars,
+                    statut="conversion" if i >= 12 else "certifie", niveau="bronze" if 8 <= i < 12 else "",
+                    numero_membre=f"M{i + 1:04d}", date_inspection_interne=debut - timedelta(days=30),
                 )
             producteurs.append(p)
 
@@ -122,27 +140,31 @@ class Command(BaseCommand):
             Avance.objects.create(campagne=campagne, producteur=p, montant=Decimal("50000"), motif="Intrants",
                                   date=debut)
         for p in producteurs[:12]:
-            du = sum(a.montant for a in p.achats.all())
+            du = sum(a.montant_total for a in p.achats.all())
             if du > 100000:
                 Paiement.objects.create(campagne=campagne, producteur=p, montant=(du * Decimal("0.6")).quantize(1),
                                         mode=rnd.choice(["especes", "mobile_money"]), date=fin)
-        for p in producteurs:
-            if p.parcelles.filter(certification="rainforest").exists() and p.achats.exists():
-                Prime.objects.create(campagne=campagne, producteur=p, type_prime="certification",
-                                     montant=Decimal("15000"), date=fin)
 
-        exportateur, _ = Exportateur.objects.get_or_create(nom="Exportateur Démo SA",
-                                                           defaults={"numero_agrement": "EXP-0001"})
-        lot = Lot.objects.create(magasin=magasins[0], campagne=campagne)
-        ids = list(Achat.objects.filter(magasin=magasins[0]).order_by("date").values_list("pk", flat=True)[:15])
-        Achat.objects.filter(pk__in=ids).update(lot=lot)
-        lot.statut = "ferme"
-        lot.save()
+        exportateur, _ = Exportateur.objects.get_or_create(
+            nom="Exportateur Démo SA", defaults={"numero_agrement": "EXP-0001", "code_ccc": "EXP-CCC-01"})
+        # Lot certifié RA livré, lot conventionnel fermé, lot ARS 1000 ouvert.
+        lot_ra = Lot.objects.create(magasin=magasins[0], campagne=campagne, programme=ra, humidite=Decimal("7.2"),
+                                    grainage=95, taux_moisi=Decimal("2"), taux_ardoise=Decimal("2.5"),
+                                    taux_defauts=Decimal("1.5"), date_analyse=fin)
+        lot_conv = Lot.objects.create(magasin=magasins[0], campagne=campagne, humidite=Decimal("7.8"), grainage=98,
+                                      taux_moisi=Decimal("3.5"), taux_ardoise=Decimal("5"), taux_defauts=Decimal("4"),
+                                      date_analyse=fin)
+        for achat in Achat.objects.filter(magasin=magasins[0]):
+            LigneLot.placer(lot_ra, achat)
+            LigneLot.placer(lot_conv, achat)
+        Lot.objects.filter(pk__in=[lot_ra.pk, lot_conv.pk]).update(statut="ferme")
         livraison = Livraison.objects.create(
-            exportateur=exportateur, poids_livre=(lot.poids_net * Decimal("0.995")).quantize(Decimal("0.01")),
-            prix_kg=Decimal("2950"), transporteur="Transports Démo", immatriculation="1234 AB 01", date=fin,
+            exportateur=exportateur, numero_connaissement="CN-DEMO-000001", destination="san_pedro",
+            nombre_sacs=lot_ra.nombre_sacs, poids_brut=lot_ra.poids_net + lot_ra.nombre_sacs,
+            poids_livre=lot_ra.poids_net, prix_kg=Decimal("2950"), transporteur="Transports Démo",
+            immatriculation="1234 AB 01", chauffeur="Koné Moussa", permis_chauffeur="P-778899", date=fin,
         )
-        livraison.lots.add(lot)
-        Lot.objects.filter(pk=lot.pk).update(statut="livre")
-        Lot.objects.create(magasin=magasins[1], campagne=campagne)
+        livraison.lots.add(lot_ra)
+        Lot.objects.filter(pk=lot_ra.pk).update(statut="livre")
+        Lot.objects.create(magasin=magasins[1], campagne=campagne, programme=ars)
         self.stdout.write(self.style.SUCCESS("Données de démonstration créées."))

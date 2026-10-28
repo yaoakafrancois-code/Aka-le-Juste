@@ -91,6 +91,8 @@ def situation_producteur(producteur, campagne=None):
     """Situation financière d'un producteur.
 
     solde = achats + primes − paiements − avances
+    Les primes comprennent les primes de certification calculées sur les reçus d'achat certifiés
+    et les primes saisies manuellement.
     Un solde positif est le montant que la coopérative doit encore au producteur ;
     un solde négatif est une dette du producteur (avance non couverte).
     """
@@ -101,12 +103,15 @@ def situation_producteur(producteur, campagne=None):
         return qs.aggregate(t=Sum(champ))["t"] or 0
 
     achats = total(producteur.achats.all())
-    primes = total(producteur.primes.all())
+    primes_certification = total(producteur.achats.all(), "montant_prime")
+    primes = total(producteur.primes.all()) + primes_certification
     paiements = total(producteur.paiements.all())
     avances = total(producteur.avances.all())
     return {
         "achats": achats,
         "poids": total(producteur.achats.all(), "poids_net"),
+        "poids_certifie": total(producteur.achats.all(), "poids_certifie"),
+        "primes_certification": primes_certification,
         "primes": primes,
         "paiements": paiements,
         "avances": avances,

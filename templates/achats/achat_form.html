@@ -1,48 +1,110 @@
 {% extends "form.html" %}
+{% load l10n %}
 {% block apres_champs %}
+<div class="calcul" id="bloc-certification" hidden></div>
 <div class="calcul">
   <div><span>Poids net</span><strong id="calc-net">–</strong></div>
+  <div><span>dont certifié</span><strong id="calc-cert">–</strong></div>
+  <div><span>dont non certifié</span><strong id="calc-conv">–</strong></div>
   <div><span>Prix appliqué</span><strong id="calc-prix">–</strong></div>
-  <div><span>Montant à payer</span><strong id="calc-montant">–</strong></div>
+  <div><span>Montant cacao</span><strong id="calc-montant">–</strong></div>
+  <div><span>Prime certification</span><strong id="calc-prime">–</strong></div>
 </div>
 {% endblock %}
 {% block scripts %}
 {{ prix_campagnes|json_script:"prix-campagnes" }}
+{{ prix_du_jour|json_script:"prix-du-jour" }}
 <script>
 (function () {
   var prixCampagnes = JSON.parse(document.getElementById("prix-campagnes").textContent || "{}");
+  var prixDuJour = JSON.parse(document.getElementById("prix-du-jour").textContent || "[]");
+  var infos = { certifications: [] };
+  var restantInitial = {{ restant_initial|unlocalize }};  // part certifiée déjà comptée pour cet achat (modification)
   var $ = function (id) { return document.getElementById(id); };
   var nombre = function (id) { var v = parseFloat(($(id).value || "").replace(",", ".")); return isNaN(v) ? 0 : v; };
   var fmt = function (n, d) { return n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }); };
 
-  function calculer() {
-    var net = (nombre("id_poids_brut") - nombre("id_tare")) * (1 - nombre("id_refaction") / 100);
-    var prix = $("id_prix_kg").value ? nombre("id_prix_kg") : (prixCampagnes[$("id_campagne").value] || 0);
-    net = Math.max(net, 0);
-    $("calc-net").textContent = fmt(net, 2) + " kg";
-    $("calc-prix").textContent = fmt(prix, 0) + " F/kg";
-    $("calc-montant").textContent = fmt(Math.round(net * prix), 0) + " FCFA";
+  function prixApplicable() {
+    var c = $("id_campagne").value, d = $("id_date").value, m = $("id_magasin").value;
+    var general = null, local = null;
+    prixDuJour.forEach(function (p) {
+      if (String(p.campagne) !== c || p.date !== d) return;
+      if (p.magasin === null) general = p; else if (String(p.magasin) === m) local = p;
+    });
+    if (local) return { prix: local.prix, source: "prix du jour (magasin)" };
+    if (general) return { prix: general.prix, source: "prix du jour" };
+    return { prix: prixCampagnes[c] || 0, source: "prix fixé de la campagne" };
   }
-  ["id_poids_brut", "id_tare", "id_refaction", "id_prix_kg", "id_campagne"].forEach(function (id) {
+
+  function certificationRetenue() {
+    if ($("id_vendre_non_certifie").checked) return null;
+    var choix = $("id_programme").value;
+    var valides = infos.certifications.filter(function (c) { return c.certifie && (!choix || String(c.programme) === choix); });
+    return valides.length ? valides[0] : null;
+  }
+
+  function calculer() {
+    var net = Math.max((nombre("id_poids_brut") - nombre("id_tare")) * (1 - nombre("id_refaction") / 100), 0);
+    var ap = prixApplicable();
+    var prix = $("id_prix_kg").value ? nombre("id_prix_kg") : ap.prix;
+    var cert = certificationRetenue();
+    var certifie = 0;
+    if (cert) {
+      var restant = cert.restant + (restantInitial || 0);
+      certifie = Math.min(net, Math.max(restant, 0));
+    }
+    $("calc-net").textContent = fmt(net, 2) + " kg";
+    $("calc-cert").textContent = fmt(certifie, 2) + " kg" + (cert && certifie > 0 ? " (" + cert.code + ")" : "");
+    $("calc-conv").textContent = fmt(net - certifie, 2) + " kg";
+    $("calc-prix").textContent = fmt(prix, 0) + " F/kg" + ($("id_prix_kg").value ? " (saisi)" : " – " + ap.source);
+    $("calc-montant").textContent = fmt(Math.round(net * prix), 0) + " F";
+    $("calc-prime").textContent = fmt(Math.round(certifie * (cert ? cert.prime_kg : 0)), 0) + " F";
+
+    var bloc = $("bloc-certification");
+    if (!infos.certifications.length) {
+      bloc.hidden = !$("id_producteur").value;
+      bloc.innerHTML = "<div><span>Certification</span><strong>Producteur non certifié pour cette campagne : tout le cacao est acheté en conventionnel.</strong></div>";
+      return;
+    }
+    bloc.hidden = false;
+    bloc.innerHTML = infos.certifications.map(function (c) {
+      return "<div><span>" + c.code + " – " + c.statut + "</span><strong>" +
+        (c.certifie ? "reste " + fmt(c.restant + (restantInitial || 0), 0) + " kg certifiables sur " + fmt(c.quota, 0) : "non certifiable") +
+        "</strong></div>";
+    }).join("");
+    if (cert && net > certifie) {
+      bloc.innerHTML += "<div><span>Attention</span><strong class='negatif'>Volume estimé dépassé : " + fmt(net - certifie, 2) + " kg passent en non certifié.</strong></div>";
+    }
+  }
+
+  function chargerProducteur(conserverParcelle) {
+    var select = $("id_parcelle"), valeur = select.value;
+    var id = $("id_producteur").value;
+    if (!conserverParcelle) select.innerHTML = '<option value="">---------</option>';
+    infos = { certifications: [] };
+    if (!id) { calculer(); return; }
+    fetch("{% url 'producteurs:liste' %}" + id + "/infos.json?campagne=" + $("id_campagne").value)
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        infos = data;
+        if (!conserverParcelle) {
+          data.parcelles.forEach(function (p) {
+            var o = document.createElement("option"); o.value = p.id; o.textContent = p.libelle; select.appendChild(o);
+          });
+          if (data.parcelles.length === 1) select.value = data.parcelles[0].id;
+        } else { select.value = valeur; }
+        calculer();
+      })
+      .catch(function () { calculer(); });
+  }
+
+  ["id_poids_brut", "id_tare", "id_refaction", "id_prix_kg", "id_date", "id_magasin", "id_programme", "id_vendre_non_certifie"].forEach(function (id) {
     $(id).addEventListener("input", calculer);
     $(id).addEventListener("change", calculer);
   });
-  calculer();
-
-  // Recharger la liste des parcelles quand le producteur change.
-  $("id_producteur").addEventListener("change", function () {
-    var select = $("id_parcelle");
-    select.innerHTML = '<option value="">---------</option>';
-    if (!this.value) return;
-    fetch("{% url 'producteurs:liste' %}" + this.value + "/parcelles.json")
-      .then(function (r) { return r.json(); })
-      .then(function (data) {
-        data.parcelles.forEach(function (p) {
-          var o = document.createElement("option"); o.value = p.id; o.textContent = p.libelle; select.appendChild(o);
-        });
-        if (data.parcelles.length === 1) select.value = data.parcelles[0].id;
-      });
-  });
+  $("id_producteur").addEventListener("change", function () { restantInitial = 0; chargerProducteur(false); });
+  $("id_campagne").addEventListener("change", function () { chargerProducteur(true); });
+  chargerProducteur(true);
 })();
 </script>
 {% endblock %}

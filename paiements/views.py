@@ -1,5 +1,5 @@
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum, Value
+from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse, reverse_lazy
@@ -140,9 +140,13 @@ def soldes_producteurs(campagne=None, section=None, q=""):
     qs = Producteur.objects.select_related("section").annotate(
         total_poids=somme(Achat, "poids_net"),
         total_achats=somme(Achat),
-        total_primes=somme(Prime),
+        total_poids_certifie=somme(Achat, "poids_certifie"),
+        total_primes_achats=somme(Achat, "montant_prime"),
+        total_primes_saisies=somme(Prime),
         total_paiements=somme(Paiement),
         total_avances=somme(Avance),
+    ).annotate(
+        total_primes=F("total_primes_achats") + F("total_primes_saisies"),
     ).annotate(
         solde=Coalesce("total_achats", zero) + Coalesce("total_primes", zero)
         - Coalesce("total_paiements", zero) - Coalesce("total_avances", zero)
@@ -180,7 +184,7 @@ class Situation(AccesMixin, TemplateView):
             sections=Section.objects.all(),
             totaux={
                 cle: sum(getattr(l, cle) for l in lignes)
-                for cle in ("total_poids", "total_achats", "total_primes", "total_paiements", "total_avances",
+                for cle in ("total_poids", "total_poids_certifie", "total_achats", "total_primes", "total_paiements", "total_avances",
                             "solde")
             },
         )
@@ -193,13 +197,13 @@ def export_situation(request):
     g = request.GET
     campagne = Campagne.objects.filter(pk=g.get("campagne")).first() if g.get("campagne") else None
     lignes = (
-        [p.code, p.nom_complet, p.section or "", p.total_poids, p.total_achats, p.total_primes, p.total_paiements,
-         p.total_avances, p.solde]
+        [p.code, p.nom_complet, p.section or "", p.total_poids, p.total_poids_certifie, p.total_achats,
+         p.total_primes, p.total_paiements, p.total_avances, p.solde]
         for p in soldes_producteurs(campagne, g.get("section")).order_by("nom")
     )
     return reponse_csv(
         "situation_producteurs.csv",
-        ["Code", "Producteur", "Section", "Poids net (kg)", "Achats", "Primes", "Paiements", "Avances", "Solde"],
+        ["Code", "Producteur", "Section", "Poids net (kg)", "dont certifié (kg)", "Achats", "Primes", "Paiements", "Avances", "Solde"],
         lignes,
     )
 
@@ -224,6 +228,8 @@ def releve(request, pk):
     mouvements = []
     for a in producteur.achats.filter(**filtre):
         mouvements.append((a.date, f"Achat {a.numero} – {a.poids_net} kg à {a.prix_kg} F/kg", a.montant, 0))
+        if a.montant_prime:
+            mouvements.append((a.date, f"Prime {a.programme.code} – {a.poids_certifie} kg certifiés", a.montant_prime, 0))
     for p in producteur.primes.filter(**filtre):
         mouvements.append((p.date, p.get_type_prime_display(), p.montant, 0))
     for p in producteur.avances.filter(**filtre):

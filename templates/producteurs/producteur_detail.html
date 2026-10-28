@@ -14,7 +14,7 @@
 </div>
 
 <div class="grille">
-  <div class="indicateur"><div class="libelle">Livré{% if campagne %} ({{ campagne }}){% endif %}</div><div class="valeur">{{ situation.poids|floatformat:"0g" }} kg</div><div class="detail">{{ situation.achats|floatformat:"0g" }} F</div></div>
+  <div class="indicateur"><div class="libelle">Livré{% if campagne %} ({{ campagne }}){% endif %}</div><div class="valeur">{{ situation.poids|floatformat:"0g" }} kg</div><div class="detail">dont certifié {{ situation.poids_certifie|floatformat:"0g" }} kg · {{ situation.achats|floatformat:"0g" }} F</div></div>
   <div class="indicateur vert"><div class="libelle">Payé + avances</div><div class="valeur">{{ situation.paiements|add:situation.avances|floatformat:"0g" }} F</div><div class="detail">dont avances {{ situation.avances|floatformat:"0g" }} F · primes {{ situation.primes|floatformat:"0g" }} F</div></div>
   <div class="indicateur {% if situation_globale.solde > 0 %}rouge{% elif situation_globale.solde < 0 %}orange{% else %}vert{% endif %}">
     <div class="libelle">Solde global (toutes campagnes)</div><div class="valeur">{{ situation_globale.solde|floatformat:"0g" }} F</div>
@@ -40,22 +40,37 @@
   <div class="carte">
     <div class="titre-page"><h2>Parcelles ({{ object.superficie_totale|floatformat:"2g" }} ha)</h2><a class="btn petit" href="{% url 'producteurs:parcelle_creer' %}?producteur={{ object.pk }}">+ Parcelle</a></div>
     <table>
-      <thead><tr><th>Code</th><th class="n">Ha</th><th>GPS</th><th>Certification</th><th>EUDR</th><th></th></tr></thead>
+      <thead><tr><th>Code</th><th class="n">Ha</th><th>GPS</th><th>Périmètre certifié</th><th>EUDR</th><th></th></tr></thead>
       <tbody>{% for pa in parcelles %}
         <tr><td>{{ pa.code }}</td><td class="n">{{ pa.superficie_ha }}</td>
           <td>{% if pa.geolocalisee %}{{ pa.latitude }}, {{ pa.longitude }}{% else %}<span class="badge orange">Manquant</span>{% endif %}</td>
-          <td>{{ pa.get_certification_display }}</td><td>{% include "producteurs/_badge_eudr.html" %}</td>
+          <td>{% if pa.certifiee %}Oui{% else %}<span class="badge gris">Exclue</span>{% endif %}</td><td>{% include "producteurs/_badge_eudr.html" %}</td>
           <td><a href="{% url 'producteurs:parcelle_modifier' pa.pk %}">Modifier</a></td></tr>
       {% empty %}<tr><td colspan="6" class="vide">Aucune parcelle enregistrée.</td></tr>{% endfor %}</tbody>
     </table>
   </div>
 </div>
 
+<div class="carte">
+  <div class="titre-page"><h2>Certifications (RA, ARS 1000…)</h2><a class="btn petit" href="{% url 'producteurs:certification_creer' %}?producteur={{ object.pk }}">+ Certification</a></div>
+  <div class="tableau-conteneur"><table>
+    <thead><tr><th>Programme</th><th>Campagne</th><th>Statut</th><th>N° membre</th><th class="n">Superficie (ha)</th><th class="n">Production estimée (kg)</th><th class="n">Acheté certifié (kg)</th><th class="n">Restant (kg)</th><th>Inspection / audit</th><th></th></tr></thead>
+    <tbody>{% for c in certifications %}
+      <tr><td>{{ c.programme.code }}{% if c.niveau %} ({{ c.get_niveau_display }}){% endif %}</td><td>{{ c.campagne }}</td>
+        <td>{% if c.statut == "certifie" %}<span class="badge vert">{{ c.get_statut_display }}</span>{% elif c.statut == "conversion" %}<span class="badge orange">{{ c.get_statut_display }}</span>{% else %}<span class="badge rouge">{{ c.get_statut_display }}</span>{% endif %}</td>
+        <td>{{ c.numero_membre|default:"–" }}</td><td class="n">{{ c.superficie|floatformat:"2g" }}</td><td class="n">{{ c.quota_kg|floatformat:"0g" }}</td>
+        <td class="n">{{ c.volume_achete|floatformat:"0g" }}</td><td class="n">{{ c.volume_restant|floatformat:"0g" }}</td>
+        <td>{{ c.date_inspection_interne|date:"d/m/Y"|default:"–" }} / {{ c.date_audit|date:"d/m/Y"|default:"–" }}</td>
+        <td><a href="{% url 'producteurs:certification_modifier' c.pk %}">Modifier</a></td></tr>
+    {% empty %}<tr><td colspan="10" class="vide">Producteur non certifié : son cacao est acheté en conventionnel.</td></tr>{% endfor %}</tbody>
+  </table></div>
+</div>
+
 <form method="get" class="filtres">{% include "_filtre_campagne.html" %}</form>
 
 <div class="carte"><h2>Achats</h2><div class="tableau-conteneur"><table>
-  <thead><tr><th>Reçu</th><th>Date</th><th>Magasin</th><th class="n">Sacs</th><th class="n">Poids net</th><th class="n">Prix</th><th class="n">Montant</th><th>Lot</th></tr></thead>
-  <tbody>{% for a in achats %}<tr><td><a href="{{ a.get_absolute_url }}">{{ a.numero }}</a></td><td>{{ a.date|date:"d/m/Y" }}</td><td>{{ a.magasin.nom }}</td><td class="n">{{ a.nombre_sacs }}</td><td class="n">{{ a.poids_net|floatformat:"2g" }}</td><td class="n">{{ a.prix_kg|floatformat:"0g" }}</td><td class="n">{{ a.montant|floatformat:"0g" }}</td><td>{{ a.lot|default:"–" }}</td></tr>
+  <thead><tr><th>Reçu</th><th>Date</th><th>Magasin</th><th class="n">Sacs</th><th class="n">Poids net</th><th>Certification</th><th class="n">Prix</th><th class="n">Montant</th><th class="n">Prime</th></tr></thead>
+  <tbody>{% for a in achats %}<tr><td><a href="{{ a.get_absolute_url }}">{{ a.numero }}</a></td><td>{{ a.date|date:"d/m/Y" }}</td><td>{{ a.magasin.nom }}</td><td class="n">{{ a.nombre_sacs }}</td><td class="n">{{ a.poids_net|floatformat:"2g" }}</td><td>{% include "achats/_badge_certification.html" %}</td><td class="n">{{ a.prix_kg|floatformat:"0g" }}</td><td class="n">{{ a.montant|floatformat:"0g" }}</td><td class="n">{{ a.montant_prime|floatformat:"0g" }}</td></tr>
   {% empty %}<tr><td colspan="8" class="vide">Aucun achat.</td></tr>{% endfor %}</tbody>
 </table></div></div>
 

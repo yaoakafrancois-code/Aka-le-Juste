@@ -8,20 +8,35 @@
 </div>
 <div class="document">
   <div class="entete-doc">
-    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}{% if cooperative.numero_agrement %}<br>Agrément : {{ cooperative.numero_agrement }}{% endif %}</div>
-    <div style="text-align:right"><strong>REÇU D'ACHAT DE CACAO</strong><br>N° {{ achat.numero }}<br>Date : {{ achat.date|date:"d/m/Y" }}<br>Campagne : {{ achat.campagne }}</div>
+    <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}
+      {% if cooperative.numero_agrement %}<br>Agrément : {{ cooperative.numero_agrement }}{% endif %}
+      {% if cooperative.code_ccc %}<br>Code CCC : {{ cooperative.code_ccc }}{% endif %}</div>
+    <div style="text-align:right"><strong>REÇU D'ACHAT DE CACAO</strong><br>N° {{ achat.numero }}<br>Date : {{ achat.date|date:"d/m/Y" }}<br>Campagne : {{ achat.campagne }}
+      <br>{% if achat.est_certifie and achat.poids_non_certifie %}<span class="badge orange">Certifié {{ achat.programme.code }} + non certifié</span>{% elif achat.est_certifie %}<span class="badge vert">Certifié {{ achat.programme.code }}</span>{% else %}<span class="badge gris">Non certifié</span>{% endif %}</div>
   </div>
   <dl class="fiche">
     <dt>Producteur</dt><dd>{{ achat.producteur.nom_complet }} ({{ achat.producteur.code }})</dd>
+    {% if achat.producteur.numero_carte_ccc %}<dt>Carte producteur</dt><dd>{{ achat.producteur.numero_carte_ccc }}</dd>{% endif %}
     <dt>Section / village</dt><dd>{{ achat.producteur.section|default:"–" }} / {{ achat.producteur.village|default:"–" }}</dd>
-    {% if achat.parcelle %}<dt>Parcelle</dt><dd>{{ achat.parcelle.code }}</dd>{% endif %}
+    {% if achat.parcelle %}<dt>Parcelle</dt><dd>{{ achat.parcelle.code }} ({{ achat.parcelle.superficie_ha }} ha)</dd>{% endif %}
+    {% if certification %}<dt>Certification</dt><dd>{{ achat.programme }}{% if certification.numero_membre %} – membre n° {{ certification.numero_membre }}{% endif %}{% if achat.programme.numero_certificat %} – certificat {{ achat.programme.numero_certificat }}{% endif %}</dd>{% endif %}
     <dt>Magasin</dt><dd>{{ achat.magasin.nom }}</dd>
   </dl>
   <table style="margin-top:1rem">
-    <thead><tr><th>Sacs</th><th class="n">Poids brut</th><th class="n">Tare</th><th class="n">Réfaction</th><th class="n">Poids net</th><th class="n">Prix/kg</th><th class="n">Montant</th></tr></thead>
-    <tbody><tr><td>{{ achat.nombre_sacs }}</td><td class="n">{{ achat.poids_brut|floatformat:"2g" }} kg</td><td class="n">{{ achat.tare|floatformat:"2g" }} kg</td><td class="n">{{ achat.refaction }} %</td><td class="n">{{ achat.poids_net|floatformat:"2g" }} kg</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }} F</td><td class="n"><strong>{{ achat.montant|floatformat:"0g" }} F</strong></td></tr></tbody>
+    <thead><tr><th>Sacs</th><th class="n">Poids brut</th><th class="n">Tare</th><th class="n">Réfaction</th><th class="n">Poids net</th></tr></thead>
+    <tbody><tr><td>{{ achat.nombre_sacs }}</td><td class="n">{{ achat.poids_brut|floatformat:"2g" }} kg</td><td class="n">{{ achat.tare|floatformat:"2g" }} kg</td><td class="n">{{ achat.refaction }} %</td><td class="n"><strong>{{ achat.poids_net|floatformat:"2g" }} kg</strong></td></tr></tbody>
+  </table>
+  <table style="margin-top:1rem">
+    <thead><tr><th>Désignation</th><th class="n">Poids (kg)</th><th class="n">Prix / kg</th><th class="n">Montant (F)</th></tr></thead>
+    <tbody>
+      {% if achat.poids_certifie %}<tr><td>Cacao certifié {{ achat.programme.code }}</td><td class="n">{{ achat.poids_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_certifie|floatformat:"0g" }}</td></tr>{% endif %}
+      {% if achat.poids_non_certifie %}<tr><td>Cacao non certifié (conventionnel)</td><td class="n">{{ achat.poids_non_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_non_certifie|floatformat:"0g" }}</td></tr>{% endif %}
+      <tr><td><strong>Total cacao</strong> ({{ achat.get_source_prix_display|lower }})</td><td class="n">{{ achat.poids_net|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n"><strong>{{ achat.montant|floatformat:"0g" }}</strong></td></tr>
+      {% if achat.montant_prime %}<tr><td>Prime de certification {{ achat.programme.code }}</td><td class="n">{{ achat.poids_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prime_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_prime|floatformat:"0g" }}</td></tr>{% endif %}
+    </tbody>
+    <tfoot><tr><td colspan="3">NET À PAYER AU PRODUCTEUR</td><td class="n">{{ achat.montant_total|floatformat:"0g" }} F</td></tr></tfoot>
   </table>
   <p>Qualité : {{ achat.get_qualite_display }}{% if achat.humidite is not None %} · Humidité : {{ achat.humidite }} %{% endif %}</p>
-  <div class="signatures"><div>Signature du producteur</div><div>Le peseur ({{ achat.agent|default:"" }})</div></div>
+  <div class="signatures"><div>Signature du producteur</div><div>Le peseur{% if achat.agent %} ({{ achat.agent }}){% endif %}</div></div>
 </div>
 {% endblock %}

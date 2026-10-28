@@ -10,6 +10,14 @@ class Cooperative(models.Model):
     nom = models.CharField(max_length=200, default="Ma coopérative")
     sigle = models.CharField(max_length=30, blank=True)
     numero_agrement = models.CharField("n° d'agrément", max_length=60, blank=True)
+    code_ccc = models.CharField(
+        "code coopérative (CCC)", max_length=60, blank=True,
+        help_text="Identifiant de la coopérative auprès du Conseil du Café-Cacao.",
+    )
+    numero_rccm = models.CharField("n° RCCM", max_length=60, blank=True)
+    region = models.CharField("région", max_length=100, blank=True)
+    departement = models.CharField("département", max_length=100, blank=True)
+    sous_prefecture = models.CharField("sous-préfecture", max_length=100, blank=True)
     adresse = models.CharField(max_length=255, blank=True)
     telephone = models.CharField("téléphone", max_length=40, blank=True)
     email = models.EmailField(blank=True)
@@ -24,6 +32,34 @@ class Cooperative(models.Model):
     @classmethod
     def courante(cls):
         return cls.objects.first() or cls(nom="Ma coopérative")
+
+
+class PrixDuJour(models.Model):
+    """Prix d'achat appliqué un jour donné, à la place du prix fixé de la campagne."""
+
+    campagne = models.ForeignKey("Campagne", on_delete=models.CASCADE, related_name="prix_du_jour")
+    date = models.DateField()
+    magasin = models.ForeignKey(
+        "Magasin", on_delete=models.CASCADE, null=True, blank=True, related_name="prix_du_jour",
+        help_text="Laisser vide pour appliquer ce prix dans tous les magasins.",
+    )
+    prix_kg = models.DecimalField("prix (FCFA/kg)", max_digits=10, decimal_places=2)
+
+    class Meta:
+        verbose_name = "prix du jour"
+        verbose_name_plural = "prix du jour"
+        ordering = ["-date"]
+        constraints = [
+            models.UniqueConstraint(fields=["campagne", "date", "magasin"], name="prix_du_jour_unique"),
+        ]
+
+    def __str__(self):
+        return f"{self.date:%d/%m/%Y} : {self.prix_kg} FCFA/kg"
+
+    def clean(self):
+        doublon = PrixDuJour.objects.filter(campagne_id=self.campagne_id, date=self.date, magasin=self.magasin)
+        if self.campagne_id and doublon.exclude(pk=self.pk).exists():
+            raise ValidationError("Un prix existe déjà pour cette date et ce magasin.")
 
 
 class CampagneQuerySet(models.QuerySet):
@@ -60,6 +96,12 @@ class Campagne(models.Model):
         super().save(*args, **kwargs)
         if self.active:
             Campagne.objects.exclude(pk=self.pk).filter(active=True).update(active=False)
+
+    def prix_applicable(self, jour, magasin=None):
+        """Prix du jour (du magasin, sinon général) s'il existe, sinon prix fixé de la campagne."""
+        prix = self.prix_du_jour.filter(date=jour)
+        trouve = (magasin and prix.filter(magasin=magasin).first()) or prix.filter(magasin__isnull=True).first()
+        return trouve.prix_kg if trouve else self.prix_kg
 
 
 class Section(models.Model):
