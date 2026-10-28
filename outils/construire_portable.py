@@ -1,6 +1,7 @@
 """Fabrique la version portable de CacaoCoop pour Windows (clé USB, disque dur, CD).
 
-    python outils/construire_portable.py            # produit dist/CacaoCoop-portable-windows.zip
+    python outils/construire_portable.py                   # produit dist/CacaoCoop-portable-windows.zip
+    python outils/construire_portable.py --installateur    # + dist/Installer-CacaoCoop.exe (nécessite NSIS)
 
 Le dossier obtenu contient son propre Python (paquet officiel « python » publié sur NuGet) et
 toutes les dépendances : il fonctionne sur n'importe quel Windows 10/11 64 bits, sans installation
@@ -16,10 +17,11 @@ import zipfile
 from pathlib import Path
 
 RACINE = Path(__file__).resolve().parent.parent
+VERSION = (RACINE / "VERSION").read_text(encoding="ascii").strip()
 VERSION_PYTHON = "3.12.8"
 URL_NUGET = "https://api.nuget.org/v3-flatcontainer/python/{v}/python.{v}.nupkg"
 A_COPIER = ["config", "core", "producteurs", "achats", "paiements", "stocks", "templates", "static",
-            "manage.py", "lancer.py", "requirements.txt", "README.md"]
+            "manage.py", "lancer.py", "requirements.txt", "README.md", "VERSION"]
 # Parties de la bibliothèque standard inutiles ici (allège le dossier d'environ 40 %).
 A_RETIRER = ["Lib/test", "Lib/idlelib", "Lib/tkinter", "Lib/turtledemo", "Lib/ensurepip", "tcl",
              "DLLs/_tkinter.pyd", "DLLs/tcl86t.dll", "DLLs/tk86t.dll"]
@@ -135,6 +137,9 @@ def construire(version, sortie, paquet_python=None):
     for nom, contenu in LANCEURS.items():
         (dossier / nom).write_text(contenu.replace("\n", "\r\n"), encoding="ascii")
     (dossier / "LISEZMOI.txt").write_text(LISEZMOI.replace("\n", "\r\n"), encoding="utf-8-sig")
+    guide = (RACINE / "GUIDE_INSTALLATION.md").read_text(encoding="utf-8")
+    (dossier / "GUIDE_INSTALLATION.txt").write_text(guide.replace("\n", "\r\n"), encoding="utf-8-sig")
+    (dossier / "VERSION.txt").write_text(VERSION + "\r\n", encoding="ascii")
 
     archive = sortie / "CacaoCoop-portable-windows.zip"
     print(f"Création de {archive}…")
@@ -147,10 +152,27 @@ def construire(version, sortie, paquet_python=None):
     return archive
 
 
+def construire_installateur(sortie):
+    """Compile l'installateur Windows avec NSIS (makensis, disponible sous Linux, macOS et Windows)."""
+    makensis = shutil.which("makensis")
+    if not makensis:
+        sys.exit("NSIS introuvable : installez-le (apt install nsis, choco install nsis…) puis relancez.")
+    exe = sortie / "Installer-CacaoCoop.exe"
+    subprocess.run([
+        makensis, "-V2", f"-DVERSION={VERSION}", f"-DSOURCE={sortie / 'CacaoCoop'}", f"-DSORTIE={exe}",
+        str(RACINE / "outils" / "installateur.nsi"),
+    ], check=True)
+    print(f"Terminé : {exe} ({exe.stat().st_size / 1024 / 1024:.0f} Mo)")
+    return exe
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version-python", default=VERSION_PYTHON)
     parser.add_argument("--sortie", default=str(RACINE / "dist"))
     parser.add_argument("--paquet-python", help="Fichier python.X.Y.Z.nupkg déjà téléchargé (hors ligne).")
+    parser.add_argument("--installateur", action="store_true", help="Produire aussi l'installateur Windows (.exe).")
     args = parser.parse_args()
     construire(args.version_python, Path(args.sortie), args.paquet_python)
+    if args.installateur:
+        construire_installateur(Path(args.sortie))

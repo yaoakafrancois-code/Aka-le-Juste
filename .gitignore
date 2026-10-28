@@ -6,3 +6,8 @@ staticfiles/
 sauvegardes/
 .env
 dist/
+android/.gradle/
+android/build/
+android/app/build/
+android/app/cle-privee.keystore
+android/local.properties

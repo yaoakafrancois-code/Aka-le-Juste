@@ -18,7 +18,7 @@ def pixel(x, y, n):
     return FOND
 
 
-def png(n, chemin):
+def png(n, chemin=None):
     lignes = b"".join(b"\x00" + bytes(c for x in range(n) for c in pixel(x, y, n)) for y in range(n))
 
     def bloc(type_, donnees):
@@ -26,10 +26,25 @@ def png(n, chemin):
 
     contenu = (b"\x89PNG\r\n\x1a\n" + bloc(b"IHDR", struct.pack(">IIBBBBB", n, n, 8, 2, 0, 0, 0))
                + bloc(b"IDAT", zlib.compress(lignes, 9)) + bloc(b"IEND", b""))
-    Path(chemin).write_bytes(contenu)
+    if chemin:
+        Path(chemin).write_bytes(contenu)
+    return contenu
+
+
+def ico(chemin, tailles=(16, 32, 48, 256)):
+    """Icône Windows (.ico) contenant des images PNG (Windows Vista et plus récents)."""
+    images = [png(t) for t in tailles]
+    entete = struct.pack("<HHH", 0, 1, len(images))
+    decalage = 6 + 16 * len(images)
+    repertoire = b""
+    for taille, image in zip(tailles, images):
+        repertoire += struct.pack("<BBBBHHII", taille % 256, taille % 256, 0, 0, 1, 32, len(image), decalage)
+        decalage += len(image)
+    Path(chemin).write_bytes(entete + repertoire + b"".join(images))
 
 
 if __name__ == "__main__":
     dossier = Path(__file__).resolve().parent.parent / "static" / "icones"
     for taille in (192, 512):
         png(taille, dossier / f"icone-{taille}.png")
+    ico(dossier / "icone.ico")

@@ -1,0 +1,43 @@
+plugins {
+    id "com.android.application"
+}
+
+def versionTexte = rootProject.file("../VERSION").text.trim()
+def morceaux = versionTexte.tokenize(".").collect { it.toInteger() }
+
+android {
+    namespace "ci.cacaocoop.app"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "ci.cacaocoop.app"
+        minSdk 24
+        targetSdk 34
+        versionName versionTexte
+        versionCode morceaux[0] * 10000 + morceaux[1] * 100 + morceaux[2]
+    }
+
+    signingConfigs {
+        // Clé de signature : celle fournie par les secrets du dépôt (CACAO_KEYSTORE…), sinon la clé du dépôt.
+        // Une clé stable permet de mettre à jour l'application sans la désinstaller (et sans perdre les
+        // pesées en attente sur la tablette).
+        cacaocoop {
+            storeFile file(System.getenv("CACAO_KEYSTORE_FILE") ?: "cacaocoop.keystore")
+            storePassword System.getenv("CACAO_KEYSTORE_PASSWORD") ?: "cacaocoop"
+            keyAlias System.getenv("CACAO_KEY_ALIAS") ?: "cacaocoop"
+            keyPassword System.getenv("CACAO_KEY_PASSWORD") ?: "cacaocoop"
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.cacaocoop
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

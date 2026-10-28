@@ -25,6 +25,8 @@ class Donnees(TestCase):
         cls.autre_magasin = Magasin.objects.create(code="M02", nom="Annexe")
         cls.producteur = Producteur.objects.create(nom="Kouassi", prenoms="Jean", section=cls.section)
         cls.parcelle = Parcelle.objects.create(producteur=cls.producteur, superficie_ha=Decimal("2.5"))
+        # Un administrateur existe : l'assistant de première installation est terminé.
+        User.objects.create_superuser("proprietaire", "proprietaire@example.com", "motdepasse-proprio")
 
     def achat(self, **kw):
         valeurs = dict(campagne=self.campagne, producteur=self.producteur, magasin=self.magasin,
@@ -397,3 +399,40 @@ class CollecteTerrainTests(Donnees):
         self.assertFalse(Achat.objects.exists())
         self.assertEqual(self.client.post("/achats/terrain/synchroniser/", "pas du json",
                                           content_type="application/json").status_code, 400)
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class InstallationTests(TestCase):
+    def setUp(self):
+        from core import installation
+        installation._installe = False
+        self.addCleanup(setattr, installation, "_installe", False)
+
+    def test_assistant(self):
+        r = self.client.get("/achats/")
+        self.assertRedirects(r, "/installation/")
+        page = self.client.get("/installation/")
+        self.assertEqual(page.status_code, 200)
+        self.assertRegex(page.content.decode(), r'type="date"[^>]*value="\d{4}-\d{2}-\d{2}"')  # dates pré-remplies
+        r = self.client.post("/installation/", {
+            "nom": "SCOOPS Espoir de Soubré", "code_ccc": "CCC-0042", "identifiant": "chef",
+            "mot_de_passe": "Cacao-2026!", "confirmation": "Cacao-2026!", "campagne": "2026-2027 principale",
+            "date_debut": "2026-10-01", "date_fin": "2027-03-31", "prix_kg": "2800",
+            "magasin_code": "M01", "magasin_nom": "Magasin central",
+        })
+        self.assertRedirects(r, "/")
+        chef = User.objects.get(username="chef")
+        self.assertTrue(chef.is_superuser)
+        self.assertTrue(chef.groups.filter(name="Administrateur").exists())
+        self.assertEqual(Campagne.objects.active().prix_kg, Decimal("2800"))
+        self.assertEqual(Programme.objects.count(), 2)  # RA et ARS 1000 créés
+        self.assertRedirects(self.client.get("/installation/"), "/")  # assistant fermé
+
+    def test_mot_de_passe_trop_simple(self):
+        r = self.client.post("/installation/", {
+            "nom": "Coop", "identifiant": "chef", "mot_de_passe": "1234", "confirmation": "1234",
+            "campagne": "C", "date_debut": "2026-10-01", "date_fin": "2027-03-31", "prix_kg": "2800",
+            "magasin_code": "M01", "magasin_nom": "Central",
+        })
+        self.assertEqual(r.status_code, 200)
+        self.assertFalse(User.objects.exists())
