@@ -2,7 +2,7 @@
 {% block titre %}{{ object.nom_complet }}{% endblock %}
 {% block contenu %}
 <div class="titre-page">
-  <h1>{{ object.nom_complet }} <small style="color:var(--doux)">{{ object.code }}</small></h1>
+  <h1>{{ object.nom_complet }} <small style="color:var(--doux)">{{ object.code }}{% if object.numero_carte_ccc %} · carte {{ object.numero_carte_ccc }}{% endif %}</small></h1>
   <div class="actions">
     <a class="btn" href="{% url 'achats:creer' %}?producteur={{ object.pk }}">+ Pesée</a>
     <a class="btn vert" href="{% url 'paiements:creer' %}?producteur={{ object.pk }}">Payer</a>
@@ -54,17 +54,28 @@
 <div class="carte">
   <div class="titre-page"><h2>Certifications (RA, ARS 1000…)</h2><a class="btn petit" href="{% url 'producteurs:certification_creer' %}?producteur={{ object.pk }}">+ Certification</a></div>
   <div class="tableau-conteneur"><table>
-    <thead><tr><th>Programme</th><th>Campagne</th><th>Statut</th><th>N° membre</th><th class="n">Superficie (ha)</th><th class="n">Production estimée (kg)</th><th class="n">Acheté certifié (kg)</th><th class="n">Restant (kg)</th><th>Inspection / audit</th><th></th></tr></thead>
+    <thead><tr><th>Programme</th><th>Campagne</th><th>Statut</th><th>N° membre</th><th class="n">Superficie (ha)</th><th class="n">Norme (kg)</th><th class="n">Quota (kg)</th><th class="n">Livré certifié (kg)</th><th class="n">Reste (kg)</th><th>Inspection / audit</th><th></th></tr></thead>
     <tbody>{% for c in certifications %}
       <tr><td>{{ c.programme.code }}{% if c.niveau %} ({{ c.get_niveau_display }}){% endif %}</td><td>{{ c.campagne }}</td>
         <td>{% if c.statut == "certifie" %}<span class="badge vert">{{ c.get_statut_display }}</span>{% elif c.statut == "conversion" %}<span class="badge orange">{{ c.get_statut_display }}</span>{% else %}<span class="badge rouge">{{ c.get_statut_display }}</span>{% endif %}</td>
-        <td>{{ c.numero_membre|default:"–" }}</td><td class="n">{{ c.superficie|floatformat:"2g" }}</td><td class="n">{{ c.quota_kg|floatformat:"0g" }}</td>
-        <td class="n">{{ c.volume_achete|floatformat:"0g" }}</td><td class="n">{{ c.volume_restant|floatformat:"0g" }}</td>
+        <td>{{ c.numero_membre|default:"–" }}</td><td class="n">{{ c.superficie|floatformat:"2g" }}</td><td class="n">{{ c.plafond_norme_kg|floatformat:"0g" }}</td>
+        <td class="n">{{ c.quota_kg|floatformat:"0g" }}{% if c.augmentations_approuvees_kg %}<br><small>dont +{{ c.augmentations_approuvees_kg|floatformat:"0g" }} justifiés</small>{% endif %}</td>
+        <td class="n">{{ c.volume_achete|floatformat:"0g" }}</td>
+        <td class="n">{% if c.quota_epuise %}<span class="badge rouge">0 – quota épuisé</span>{% else %}{{ c.volume_restant|floatformat:"0g" }}{% endif %}</td>
         <td>{{ c.date_inspection_interne|date:"d/m/Y"|default:"–" }} / {{ c.date_audit|date:"d/m/Y"|default:"–" }}</td>
-        <td><a href="{% url 'producteurs:certification_modifier' c.pk %}">Modifier</a></td></tr>
-    {% empty %}<tr><td colspan="10" class="vide">Producteur non certifié : son cacao est acheté en conventionnel.</td></tr>{% endfor %}</tbody>
+        <td><a href="{% url 'producteurs:certification_modifier' c.pk %}">Modifier</a>{% if c.statut == "certifie" %}<br><a href="{% url 'producteurs:augmentation_creer' %}?certification={{ c.pk }}">Augmenter le quota</a>{% endif %}</td></tr>
+    {% empty %}<tr><td colspan="11" class="vide">Producteur non certifié : son cacao est acheté en conventionnel.</td></tr>{% endfor %}</tbody>
   </table></div>
 </div>
+
+{% if augmentations %}
+<div class="carte"><h2>Historique des augmentations de quota</h2><div class="tableau-conteneur"><table>
+  <thead><tr><th>Date</th><th>Programme</th><th class="n">Quantité</th><th>Motif</th><th>Statut</th><th>Demandé / décidé par</th></tr></thead>
+  <tbody>{% for d in augmentations %}<tr><td>{{ d.demande_le|date:"d/m/Y" }}</td><td>{{ d.certification.programme.code }}</td><td class="n">+{{ d.quantite_kg|floatformat:"0g" }} kg</td><td>{{ d.get_motif_display }}</td>
+    <td>{% if d.statut == "approuvee" %}<span class="badge vert">Approuvée</span>{% elif d.statut == "rejetee" %}<span class="badge rouge">Rejetée</span>{% else %}<span class="badge orange">En attente</span>{% endif %}</td>
+    <td>{{ d.demande_par|default:"–" }} / {{ d.decide_par|default:"–" }}</td></tr>{% endfor %}</tbody>
+</table></div></div>
+{% endif %}
 
 <form method="get" class="filtres">{% include "_filtre_campagne.html" %}</form>
 

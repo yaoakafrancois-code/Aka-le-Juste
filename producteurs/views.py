@@ -1,7 +1,10 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.core.exceptions import ValidationError
 from django.db.models import Q
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import FileResponse, Http404, JsonResponse
+from django.shortcuts import get_object_or_404, redirect
+from django.views.decorators.http import require_POST
 from django.urls import reverse, reverse_lazy
 from django.views.generic import DetailView, TemplateView
 
@@ -9,8 +12,8 @@ from core.models import Campagne, Section
 from core.vues import AccesMixin, Creation, Liste, Modification, Suppression, reponse_csv
 from paiements.models import situation_producteur
 
-from .forms import CertificationForm, ParcelleForm, ProducteurForm
-from .models import CertificationProducteur, Parcelle, Producteur, Programme
+from .forms import AugmentationQuotaForm, CertificationForm, ParcelleForm, ProducteurForm
+from .models import AugmentationQuota, CertificationProducteur, Parcelle, Producteur, Programme
 
 
 class ProducteurListe(Liste):
@@ -43,6 +46,8 @@ class ProducteurDetail(AccesMixin, DetailView):
             situation_globale=situation_producteur(p),
             parcelles=p.parcelles.all(),
             certifications=p.certifications.select_related("programme", "campagne"),
+            augmentations=AugmentationQuota.objects.filter(certification__producteur=p).select_related(
+                "certification__programme", "demande_par", "decide_par"),
             achats=p.achats.filter(**filtre).select_related("magasin", "programme")[:50],
             paiements=p.paiements.filter(**filtre)[:50],
             avances=p.avances.filter(**filtre)[:50],
@@ -126,9 +131,18 @@ def infos_producteur(request, pk):
             certifications.append({
                 "programme": c.programme_id, "code": c.programme.code, "statut": c.get_statut_display(),
                 "certifie": c.statut == "certifie", "quota": float(c.quota_kg),
+                "superficie": float(c.superficie), "explication": c.explication_quota,
+                "augmentations": float(c.augmentations_approuvees_kg), "livre": float(c.volume_achete()),
                 "restant": float(c.volume_restant()), "prime_kg": float(c.programme.prime_kg),
+                "url_augmentation": reverse("producteurs:augmentation_creer") + f"?certification={c.pk}",
             })
     return JsonResponse({
+        "code": producteur.code,
+        "nom": producteur.nom_complet,
+        "carte": producteur.numero_carte_ccc,
+        "section": str(producteur.section or ""),
+        "village": producteur.village,
+        "superficie": float(producteur.superficie_totale),
         "parcelles": [{"id": p.id, "libelle": str(p)} for p in producteur.parcelles.all()],
         "certifications": certifications,
     })
@@ -257,3 +271,73 @@ def export_certifications(request):
           l["quota"], l["achete"], l["restant"], l["c"].date_inspection_interne or "", l["c"].date_audit or ""]
          for l in lignes),
     )
+
+
+class AugmentationListe(Liste):
+    model = AugmentationQuota
+    filtres = ("statut",)
+    champs_recherche = ("certification__producteur__nom", "certification__producteur__prenoms",
+                        "certification__producteur__code", "certification__producteur__numero_carte_ccc")
+
+    def get_queryset(self):
+        return super().get_queryset().select_related(
+            "certification__producteur", "certification__programme", "certification__campagne",
+            "demande_par", "decide_par")
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["statuts"] = AugmentationQuota.STATUT_CHOICES
+        ctx["peut_decider"] = self.request.user.has_perm("producteurs.approuver_augmentationquota")
+        return ctx
+
+
+class AugmentationCreation(Creation):
+    model = AugmentationQuota
+    form_class = AugmentationQuotaForm
+    template_name = "producteurs/augmentationquota_form.html"
+    message = "Demande enregistrée. Le quota augmentera après approbation par un responsable."
+    success_url = reverse_lazy("producteurs:augmentations")
+
+    def get_initial(self):
+        return {"certification": self.request.GET.get("certification")}
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["titre"] = "Demande d'augmentation de quota de certification"
+        pk = self.request.GET.get("certification")
+        ctx["certification"] = CertificationProducteur.objects.filter(pk=pk).first() if pk else None
+        return ctx
+
+    def form_valid(self, form):
+        form.instance.demande_par = self.request.user
+        return super().form_valid(form)
+
+
+@require_POST
+@login_required
+@permission_required("producteurs.approuver_augmentationquota", raise_exception=True)
+def augmentation_decision(request, pk):
+    demande = get_object_or_404(AugmentationQuota, pk=pk)
+    approuver = request.POST.get("decision") == "approuver"
+    try:
+        demande.decider(request.user, approuver, request.POST.get("commentaire", "").strip())
+    except ValidationError as e:
+        messages.error(request, " ".join(e.messages))
+    else:
+        c = demande.certification
+        if approuver:
+            messages.success(request, f"Augmentation approuvée : nouveau quota de {c.producteur.nom_complet} = "
+                                      f"{c.quota_kg:,.0f} kg.".replace(",", " "))
+        else:
+            messages.success(request, "Demande rejetée.")
+    return redirect("producteurs:augmentations")
+
+
+@login_required
+@permission_required("producteurs.view_augmentationquota", raise_exception=True)
+def augmentation_piece(request, pk):
+    """Pièce justificative, accessible seulement aux utilisateurs connectés et autorisés."""
+    demande = get_object_or_404(AugmentationQuota, pk=pk)
+    if not demande.piece_jointe:
+        raise Http404
+    return FileResponse(demande.piece_jointe.open("rb"), filename=demande.piece_jointe.name.rsplit("/", 1)[-1])

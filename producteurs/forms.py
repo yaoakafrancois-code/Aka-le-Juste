@@ -1,7 +1,7 @@
 from core.models import Campagne
 from core.vues import FormulaireStyle
 
-from .models import CertificationProducteur, Parcelle, Producteur
+from .models import AugmentationQuota, CertificationProducteur, Parcelle, Producteur
 
 
 class ProducteurForm(FormulaireStyle):
@@ -34,3 +34,18 @@ class CertificationForm(FormulaireStyle):
         super().__init__(*args, **kwargs)
         if not self.instance.pk:
             self.fields["campagne"].initial = Campagne.objects.active()
+
+
+class AugmentationQuotaForm(FormulaireStyle):
+    class Meta:
+        model = AugmentationQuota
+        fields = ["certification", "quantite_kg", "motif", "justification", "rendement_constate_kg_ha",
+                  "date_inspection", "inspecteur", "piece_jointe"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["certification"].queryset = CertificationProducteur.objects.filter(
+            statut="certifie").select_related("producteur", "programme", "campagne")
+        self.fields["certification"].label_from_instance = lambda c: (
+            f"{c.producteur.nom_complet} ({c.producteur.code}) – {c.programme.code} {c.campagne}"
+        )

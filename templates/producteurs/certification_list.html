@@ -8,9 +8,10 @@
     <a class="btn" href="{% url 'producteurs:certification_creer' %}">+ Certification</a>
   </div>
 </div>
-<p style="color:var(--doux)">Pour chaque producteur certifié, le volume certifiable de la campagne est sa production estimée
-(superficie certifiée × rendement de référence du programme, ou estimation saisie). Au-delà, le cacao acheté passe
-automatiquement en non certifié : la coopérative ne vend pas plus de cacao certifié qu'elle n'en a produit.</p>
+<p style="color:var(--doux)">Le quota certifiable de chaque producteur est égal à sa superficie certifiée multipliée par le rendement
+de la norme (par exemple 1 ha × 1 000 kg/ha = 1 000 kg). Chaque pesée certifiée réduit ce quota. Une fois le quota à zéro,
+le cacao acheté passe automatiquement en non certifié. Pour augmenter un quota, il faut une
+<a href="{% url 'producteurs:augmentations' %}">demande justifiée et approuvée</a>.</p>
 
 <div class="grille">
   {% for programme, t in par_programme.items %}
@@ -30,15 +31,15 @@ automatiquement en non certifié : la coopérative ne vend pas plus de cacao cer
   <button class="btn" type="submit">Filtrer</button>
 </form>
 <div class="tableau-conteneur"><table>
-  <thead><tr><th>Programme</th><th>Producteur</th><th>N° membre</th><th>Section</th><th>Statut</th><th class="n">Superficie (ha)</th><th class="n">Production estimée</th><th class="n">Acheté certifié</th><th class="n">Restant</th><th class="n">Taux</th><th></th></tr></thead>
+  <thead><tr><th>Programme</th><th>Producteur</th><th>N° membre</th><th>Section</th><th>Statut</th><th class="n">Superficie (ha)</th><th class="n">Norme</th><th class="n">Quota</th><th class="n">Livré certifié</th><th class="n">Restant</th><th class="n">Taux</th><th></th></tr></thead>
   <tbody>{% for l in lignes %}
     <tr><td>{{ l.c.programme.code }}{% if l.c.niveau %} ({{ l.c.get_niveau_display }}){% endif %}</td>
       <td><a href="{{ l.c.producteur.get_absolute_url }}">{{ l.c.producteur.nom_complet }}</a> <small>{{ l.c.producteur.code }}</small></td>
       <td>{{ l.c.numero_membre|default:"–" }}</td><td>{{ l.c.producteur.section|default:"–" }}</td>
       <td>{% if l.c.statut == "certifie" %}<span class="badge vert">{{ l.c.get_statut_display }}</span>{% elif l.c.statut == "conversion" %}<span class="badge orange">{{ l.c.get_statut_display }}</span>{% else %}<span class="badge rouge">{{ l.c.get_statut_display }}</span>{% endif %}</td>
-      <td class="n">{{ l.superficie|floatformat:"2g" }}</td><td class="n">{{ l.quota|floatformat:"0g" }}</td><td class="n">{{ l.achete|floatformat:"0g" }}</td><td class="n">{{ l.restant|floatformat:"0g" }}</td>
+      <td class="n">{{ l.superficie|floatformat:"2g" }}</td><td class="n">{{ l.c.plafond_norme_kg|floatformat:"0g" }}</td><td class="n">{{ l.quota|floatformat:"0g" }}</td><td class="n">{{ l.achete|floatformat:"0g" }}</td><td class="n">{% if l.c.statut == "certifie" and l.restant <= 0 %}<span class="badge rouge">Épuisé</span>{% else %}{{ l.restant|floatformat:"0g" }}{% endif %}</td>
       <td class="n {% if l.taux >= 100 %}negatif{% endif %}">{% if l.taux is not None %}{{ l.taux|floatformat:0 }} %{% else %}–{% endif %}</td>
-      <td><a href="{% url 'producteurs:certification_modifier' l.c.pk %}">Modifier</a></td></tr>
-  {% empty %}<tr><td colspan="11" class="vide">Aucune certification pour cette sélection.</td></tr>{% endfor %}</tbody>
+      <td><a href="{% url 'producteurs:certification_modifier' l.c.pk %}">Modifier</a>{% if l.c.statut == "certifie" and l.restant <= 0 %}<br><a href="{% url 'producteurs:augmentation_creer' %}?certification={{ l.c.pk }}">Augmenter</a>{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="12" class="vide">Aucune certification pour cette sélection.</td></tr>{% endfor %}</tbody>
 </table></div>
 {% endblock %}

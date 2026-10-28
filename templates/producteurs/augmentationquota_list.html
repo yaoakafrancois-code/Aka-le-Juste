@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block titre %}Augmentations de quota{% endblock %}
+{% block contenu %}
+<div class="titre-page"><h1>Demandes d'augmentation de quota</h1>
+  <a class="btn" href="{% url 'producteurs:augmentation_creer' %}">+ Nouvelle demande</a></div>
+<p style="color:var(--doux)">Le quota certifiable d'un producteur est limité par la norme (superficie × rendement maximum).
+Pour le dépasser, il faut une demande justifiée (mesure de superficie, rendement constaté lors d'une inspection…),
+approuvée par un responsable habilité, différent de la personne qui fait la demande.</p>
+<form class="filtres carte" method="get">
+  <label>Recherche<input type="search" name="q" value="{{ q }}" placeholder="Producteur, code, n° de carte…"></label>
+  <label>Statut<select name="statut"><option value="">Tous</option>{% for v, l in statuts %}<option value="{{ v }}" {% if request.GET.statut == v %}selected{% endif %}>{{ l }}</option>{% endfor %}</select></label>
+  <button class="btn" type="submit">Filtrer</button>
+</form>
+{% for d in object_list %}
+<div class="carte">
+  <div class="titre-page">
+    <h2><a href="{{ d.certification.producteur.get_absolute_url }}">{{ d.certification.producteur.nom_complet }}</a>
+      <small style="color:var(--doux)">{{ d.certification.producteur.code }}{% if d.certification.producteur.numero_carte_ccc %} · carte {{ d.certification.producteur.numero_carte_ccc }}{% endif %} · {{ d.certification.programme.code }} {{ d.certification.campagne }}</small></h2>
+    {% if d.statut == "approuvee" %}<span class="badge vert">Approuvée</span>{% elif d.statut == "rejetee" %}<span class="badge rouge">Rejetée</span>{% else %}<span class="badge orange">En attente</span>{% endif %}
+  </div>
+  <div class="grille-2">
+    <dl class="fiche">
+      <dt>Quantité demandée</dt><dd><strong>+ {{ d.quantite_kg|floatformat:"0g" }} kg</strong></dd>
+      <dt>Quota actuel</dt><dd>{{ d.certification.quota_kg|floatformat:"0g" }} kg (norme : {{ d.certification.plafond_norme_kg|floatformat:"0g" }} kg pour {{ d.certification.superficie|floatformat:"2g" }} ha)</dd>
+      <dt>Déjà livré certifié</dt><dd>{{ d.certification.volume_achete|floatformat:"0g" }} kg</dd>
+      <dt>Motif</dt><dd>{{ d.get_motif_display }}</dd>
+      {% if d.rendement_constate_kg_ha %}<dt>Rendement constaté</dt><dd>{{ d.rendement_constate_kg_ha|floatformat:"0g" }} kg/ha</dd>{% endif %}
+      {% if d.date_inspection or d.inspecteur %}<dt>Vérification</dt><dd>{{ d.date_inspection|date:"d/m/Y" }} {{ d.inspecteur }}</dd>{% endif %}
+      <dt>Pièce jointe</dt><dd>{% if d.piece_jointe %}<a href="{% url 'producteurs:augmentation_piece' d.pk %}">Voir la pièce</a>{% else %}Aucune{% endif %}</dd>
+    </dl>
+    <dl class="fiche">
+      <dt>Justification</dt><dd>{{ d.justification|linebreaksbr }}</dd>
+      <dt>Demandé par</dt><dd>{{ d.demande_par|default:"–" }} le {{ d.demande_le|date:"d/m/Y H:i" }}</dd>
+      {% if d.decide_par %}<dt>Décision</dt><dd>{{ d.decide_par }} le {{ d.decide_le|date:"d/m/Y H:i" }}{% if d.commentaire_decision %} : {{ d.commentaire_decision }}{% endif %}</dd>{% endif %}
+    </dl>
+  </div>
+  {% if d.statut == "en_attente" and peut_decider %}
+  <form method="post" action="{% url 'producteurs:augmentation_decision' d.pk %}" class="filtres" style="margin:1rem 0 0">{% csrf_token %}
+    <label style="flex:1">Commentaire<input type="text" name="commentaire" placeholder="Facultatif"></label>
+    <button class="btn vert" name="decision" value="approuver">Approuver</button>
+    <button class="btn danger" name="decision" value="rejeter">Rejeter</button>
+  </form>
+  {% endif %}
+</div>
+{% empty %}<p class="vide carte">Aucune demande.</p>{% endfor %}
+{% include "_pagination.html" %}
+{% endblock %}

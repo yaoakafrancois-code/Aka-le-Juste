@@ -133,6 +133,11 @@ STORAGES = {
 # Permet de servir les fichiers statiques sans « collectstatic » en mode bureau.
 WHITENOISE_USE_FINDERS = True
 
+# Pièces justificatives (augmentations de quota) : stockées avec les données, servies après connexion.
+MEDIA_ROOT = DATA_DIR / "pieces"
+MEDIA_URL = "/pieces/"
+FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 LOGIN_URL = "login"

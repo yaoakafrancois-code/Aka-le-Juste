@@ -2,7 +2,7 @@
 {% block titre %}{{ titre }}{% endblock %}
 {% block contenu %}
 <div class="titre-page"><h1>{{ titre }}</h1></div>
-<form method="post" class="carte" novalidate>
+<form method="post" class="carte" novalidate{% if form.is_multipart %} enctype="multipart/form-data"{% endif %}>
   {% csrf_token %}
   {% block avant_champs %}{% endblock %}
   {% include "_champs.html" %}

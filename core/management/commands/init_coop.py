@@ -52,6 +52,8 @@ class Command(BaseCommand):
             for app, actions in droits.items():
                 for action in actions.split():
                     perms += Permission.objects.filter(content_type__app_label=app, codename__startswith=f"{action}_")
+            if nom == "Administrateur":
+                perms += Permission.objects.filter(codename="approuver_augmentationquota")
             groupe.permissions.set(perms)
         if options["verbosity"]:
             self.stdout.write(self.style.SUCCESS(f"Rôles configurés : {', '.join(ROLES)}"))

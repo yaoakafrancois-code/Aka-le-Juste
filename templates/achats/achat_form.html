@@ -1,5 +1,13 @@
 {% extends "form.html" %}
 {% load l10n %}
+{% block avant_champs %}
+<div class="recherche-producteur">
+  <label for="recherche-producteur">Rechercher le producteur (nom, code ou n° de carte producteur)</label>
+  <input type="search" id="recherche-producteur" placeholder="Ex. : Kouassi, P00012 ou CI-123456" autocomplete="off">
+  <span class="aide" id="recherche-resultat"></span>
+</div>
+<div class="fiche-producteur" id="fiche-producteur" hidden></div>
+{% endblock %}
 {% block apres_champs %}
 <div class="calcul" id="bloc-certification" hidden></div>
 <div class="calcul">
@@ -61,32 +69,73 @@
     $("calc-prime").textContent = fmt(Math.round(certifie * (cert ? cert.prime_kg : 0)), 0) + " F";
 
     var bloc = $("bloc-certification");
+    bloc.hidden = !$("id_producteur").value;
     if (!infos.certifications.length) {
-      bloc.hidden = !$("id_producteur").value;
       bloc.innerHTML = "<div><span>Certification</span><strong>Producteur non certifié pour cette campagne : tout le cacao est acheté en conventionnel.</strong></div>";
       return;
     }
-    bloc.hidden = false;
     bloc.innerHTML = infos.certifications.map(function (c) {
-      return "<div><span>" + c.code + " – " + c.statut + "</span><strong>" +
-        (c.certifie ? "reste " + fmt(c.restant + (restantInitial || 0), 0) + " kg certifiables sur " + fmt(c.quota, 0) : "non certifiable") +
-        "</strong></div>";
+      if (!c.certifie) return "<div><span>" + c.code + "</span><strong>" + c.statut + " : non certifiable</strong></div>";
+      var restant = c.restant + (restantInitial || 0);
+      var apres = Math.max(restant - (cert && cert.programme === c.programme ? certifie : 0), 0);
+      var html = "<div><span>" + c.code + " – quota (" + echapper(c.explication) + ")</span><strong>" + fmt(c.quota, 0) + " kg</strong></div>" +
+        "<div><span>Déjà livré certifié</span><strong>" + fmt(c.quota - restant, 0) + " kg</strong></div>" +
+        "<div><span>Reste après cette pesée</span><strong class='" + (apres <= 0 ? "negatif" : "positif") + "'>" + fmt(apres, 0) + " kg</strong></div>";
+      if (restant <= 0) {
+        html += "<div><span>Quota de certification</span><strong class='negatif'>Épuisé : ce producteur n'a plus de quota de certification. " +
+          "<a href='" + c.url_augmentation + "'>Demander une augmentation justifiée</a></strong></div>";
+      }
+      return html;
     }).join("");
     if (cert && net > certifie) {
-      bloc.innerHTML += "<div><span>Attention</span><strong class='negatif'>Volume estimé dépassé : " + fmt(net - certifie, 2) + " kg passent en non certifié.</strong></div>";
+      bloc.innerHTML += "<div><span>Attention</span><strong class='negatif'>" + fmt(net - certifie, 2) + " kg dépassent le quota et passent en non certifié.</strong></div>";
     }
   }
+
+  function afficherFiche() {
+    var fiche = $("fiche-producteur");
+    if (!infos.code) { fiche.hidden = true; return; }
+    fiche.hidden = false;
+    fiche.innerHTML =
+      "<div><span>Producteur</span><strong>" + echapper(infos.nom) + " (" + echapper(infos.code) + ")</strong></div>" +
+      "<div><span>N° carte producteur</span><strong class='" + (infos.carte ? "" : "negatif") + "'>" + (infos.carte ? echapper(infos.carte) : "Non renseigné") + "</strong></div>" +
+      "<div><span>Section / village</span><strong>" + echapper(infos.section || "–") + " / " + echapper(infos.village || "–") + "</strong></div>" +
+      "<div><span>Superficie totale</span><strong>" + fmt(infos.superficie, 2) + " ha</strong></div>";
+  }
+
+  function echapper(t) { var d = document.createElement("div"); d.textContent = t; return d.innerHTML; }
+
+  // Recherche du producteur par nom, code ou n° de carte.
+  var options = Array.prototype.slice.call($("id_producteur").options).filter(function (o) { return o.value; });
+  var normaliser = function (t) { return t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " "); };
+  $("recherche-producteur").addEventListener("input", function () {
+    var q = normaliser(this.value.trim());
+    var res = $("recherche-resultat");
+    if (!q) { res.textContent = ""; return; }
+    var trouves = options.filter(function (o) { return normaliser(o.textContent).indexOf(q) !== -1; });
+    if (trouves.length === 1) {
+      if ($("id_producteur").value !== trouves[0].value) {
+        $("id_producteur").value = trouves[0].value;
+        $("id_producteur").dispatchEvent(new Event("change"));
+      }
+      res.textContent = "Producteur trouvé : " + trouves[0].textContent;
+    } else {
+      res.textContent = trouves.length ? trouves.length + " producteurs correspondent : précisez (ou choisissez dans la liste)." : "Aucun producteur trouvé.";
+    }
+  });
 
   function chargerProducteur(conserverParcelle) {
     var select = $("id_parcelle"), valeur = select.value;
     var id = $("id_producteur").value;
     if (!conserverParcelle) select.innerHTML = '<option value="">---------</option>';
     infos = { certifications: [] };
+    afficherFiche();
     if (!id) { calculer(); return; }
     fetch("{% url 'producteurs:liste' %}" + id + "/infos.json?campagne=" + $("id_campagne").value)
       .then(function (r) { return r.json(); })
       .then(function (data) {
         infos = data;
+        afficherFiche();
         if (!conserverParcelle) {
           data.parcelles.forEach(function (p) {
             var o = document.createElement("option"); o.value = p.id; o.textContent = p.libelle; select.appendChild(o);

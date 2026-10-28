@@ -215,3 +215,12 @@ table.compact th, table.compact td { padding: .3rem .4rem; font-size: .85rem; }
 }
 
 [hidden] { display: none !important; }
+
+/* Pesée : recherche et fiche du producteur */
+.recherche-producteur { display: flex; flex-direction: column; gap: .25rem; margin-bottom: 1rem; }
+.recherche-producteur label { font-weight: 600; font-size: .9rem; }
+.recherche-producteur input { font-size: 1.05rem; padding: .6rem .7rem; border: 2px solid var(--cacao); }
+.fiche-producteur { background: #e9f3ec; border-radius: var(--rayon); padding: .8rem 1rem; display: flex; gap: 2rem;
+                    flex-wrap: wrap; margin-bottom: 1rem; }
+.fiche-producteur div span { display: block; font-size: .8rem; color: var(--doux); }
+.fiche-producteur div strong { font-size: 1.15rem; }

@@ -1,9 +1,11 @@
 from decimal import Decimal
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Sum
 from django.urls import reverse
+from django.utils import timezone
 
 from core.models import Campagne, Section
 
@@ -100,8 +102,13 @@ class Programme(models.Model):
     code = models.CharField(max_length=20, unique=True, help_text="Ex. : RA, ARS1000, FT")
     nom = models.CharField(max_length=100)
     rendement_reference_kg_ha = models.DecimalField(
-        "rendement de référence (kg/ha)", max_digits=8, decimal_places=2, default=Decimal("500"),
-        help_text="Sert à estimer la production certifiable quand aucune estimation n'est saisie.",
+        "rendement de référence (kg/ha)", max_digits=8, decimal_places=2, default=Decimal("1000"),
+        help_text="Sert à calculer le quota certifiable (superficie × rendement) quand aucune estimation n'est saisie.",
+    )
+    rendement_max_kg_ha = models.DecimalField(
+        "rendement maximum de la norme (kg/ha)", max_digits=8, decimal_places=2, default=Decimal("1000"),
+        help_text="Plafond fixé par la norme : le quota d'un producteur ne peut pas dépasser superficie × plafond, "
+                  "sauf augmentation justifiée et approuvée.",
     )
     prime_kg = models.DecimalField(
         "prime producteur (FCFA/kg)", max_digits=8, decimal_places=2, default=Decimal("0"),
@@ -168,8 +175,16 @@ class CertificationProducteur(models.Model):
         return f"{self.programme.code} {self.campagne} – {self.get_statut_display()}"
 
     def clean(self):
-        if self.production_estimee_kg is not None and self.production_estimee_kg < 0:
+        if self.production_estimee_kg is None or not self.programme_id or not self.producteur_id:
+            return
+        if self.production_estimee_kg < 0:
             raise ValidationError({"production_estimee_kg": "La production estimée doit être positive."})
+        if self.production_estimee_kg > self.plafond_norme_kg:
+            raise ValidationError({"production_estimee_kg": (
+                f"La norme limite la production à {self.programme.rendement_max_kg_ha:.0f} kg/ha, soit "
+                f"{self.plafond_norme_kg:.0f} kg pour {self.superficie} ha. Pour aller au-delà, faites une "
+                "demande d'augmentation de quota justifiée."
+            )})
 
     @property
     def superficie(self):
@@ -178,11 +193,48 @@ class CertificationProducteur(models.Model):
         return self.producteur.parcelles.filter(certifiee=True).aggregate(s=Sum("superficie_ha"))["s"] or Decimal("0")
 
     @property
-    def quota_kg(self):
-        """Volume certifiable de la campagne (estimation de production)."""
+    def plafond_norme_kg(self):
+        """Production maximum admise par la norme : superficie × rendement maximum (ex. 1 ha × 1 000 kg/ha)."""
+        return (self.superficie * self.programme.rendement_max_kg_ha).quantize(Decimal("0.01"))
+
+    @property
+    def quota_base_kg(self):
+        """Quota avant augmentation : estimation saisie, sinon superficie × rendement de référence, plafonné par la norme."""
         if self.production_estimee_kg is not None:
-            return self.production_estimee_kg
-        return (self.superficie * self.programme.rendement_reference_kg_ha).quantize(Decimal("0.01"))
+            base = self.production_estimee_kg
+        else:
+            base = (self.superficie * self.programme.rendement_reference_kg_ha).quantize(Decimal("0.01"))
+        return min(base, self.plafond_norme_kg)
+
+    @property
+    def augmentations_approuvees_kg(self):
+        return self.augmentations.filter(statut="approuvee").aggregate(t=Sum("quantite_kg"))["t"] or Decimal("0")
+
+    @property
+    def quota_kg(self):
+        """Volume certifiable de la campagne : quota de base + augmentations justifiées et approuvées."""
+        return self.quota_base_kg + self.augmentations_approuvees_kg
+
+    @property
+    def explication_quota(self):
+        """Ex. : « 1 ha × 1 000 kg/ha (norme) + 200 kg justifiés »."""
+        def nombre(v):
+            return f"{v:,.0f}".replace(",", " ")
+
+        sup = f"{self.superficie:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+        if self.production_estimee_kg is not None and self.production_estimee_kg <= self.plafond_norme_kg:
+            texte = f"estimation de production de {nombre(self.production_estimee_kg)} kg"
+        elif self.production_estimee_kg is None and self.programme.rendement_reference_kg_ha < self.programme.rendement_max_kg_ha:
+            texte = f"{sup} ha × {nombre(self.programme.rendement_reference_kg_ha)} kg/ha"
+        else:
+            texte = f"{sup} ha × {nombre(self.programme.rendement_max_kg_ha)} kg/ha (norme)"
+        if self.augmentations_approuvees_kg:
+            texte += f" + {nombre(self.augmentations_approuvees_kg)} kg justifiés"
+        return texte
+
+    @property
+    def quota_epuise(self):
+        return self.statut == "certifie" and self.volume_restant() <= 0
 
     def volume_achete(self, exclure_achat=None):
         achats = self.producteur.achats.filter(campagne=self.campagne, programme=self.programme)
@@ -192,6 +244,77 @@ class CertificationProducteur(models.Model):
 
     def volume_restant(self, exclure_achat=None):
         return max(self.quota_kg - self.volume_achete(exclure_achat), Decimal("0"))
+
+
+class AugmentationQuota(models.Model):
+    """Demande d'augmentation du quota certifiable d'un producteur, avec sa justification.
+
+    Le quota n'augmente qu'une fois la demande approuvée par une personne habilitée,
+    différente de celle qui l'a faite.
+    """
+
+    MOTIF_CHOICES = [
+        ("nouvelle_parcelle", "Nouvelle parcelle ou superficie revue (mesure GPS)"),
+        ("rendement_constate", "Rendement constaté supérieur (inspection / estimation de récolte)"),
+        ("rehabilitation", "Parcelle réhabilitée ou entrée en production"),
+        ("erreur", "Correction d'une erreur de saisie"),
+        ("autre", "Autre motif"),
+    ]
+    STATUT_CHOICES = [
+        ("en_attente", "En attente"),
+        ("approuvee", "Approuvée"),
+        ("rejetee", "Rejetée"),
+    ]
+
+    certification = models.ForeignKey(CertificationProducteur, on_delete=models.CASCADE, related_name="augmentations")
+    quantite_kg = models.DecimalField("quantité demandée (kg)", max_digits=10, decimal_places=2)
+    motif = models.CharField(max_length=30, choices=MOTIF_CHOICES)
+    justification = models.TextField(
+        help_text="Expliquez ce qui prouve que le producteur peut produire plus "
+                  "(superficie mesurée, comptage des cabosses, rapport d'inspection…).",
+    )
+    rendement_constate_kg_ha = models.DecimalField(
+        "rendement constaté (kg/ha)", max_digits=8, decimal_places=2, null=True, blank=True)
+    date_inspection = models.DateField("date de l'inspection / de la vérification", null=True, blank=True)
+    inspecteur = models.CharField("inspecteur / agent ayant vérifié", max_length=150, blank=True)
+    piece_jointe = models.FileField(
+        "pièce justificative", upload_to="justificatifs/%Y/", blank=True,
+        help_text="Photo ou scan du rapport d'inspection, du relevé GPS…",
+    )
+    statut = models.CharField(max_length=12, choices=STATUT_CHOICES, default="en_attente")
+    demande_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+                                    related_name="+", editable=False)
+    demande_le = models.DateTimeField(auto_now_add=True)
+    decide_par = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name="+", editable=False)
+    decide_le = models.DateTimeField(null=True, blank=True, editable=False)
+    commentaire_decision = models.TextField("commentaire de la décision", blank=True)
+
+    class Meta:
+        ordering = ["-demande_le"]
+        verbose_name = "augmentation de quota"
+        verbose_name_plural = "augmentations de quota"
+        permissions = [("approuver_augmentationquota", "Peut approuver ou rejeter une augmentation de quota")]
+
+    def __str__(self):
+        return f"+{self.quantite_kg} kg – {self.certification.producteur.nom_complet} ({self.get_statut_display()})"
+
+    def clean(self):
+        if self.quantite_kg is not None and self.quantite_kg <= 0:
+            raise ValidationError({"quantite_kg": "La quantité doit être positive."})
+        if self.justification is not None and len(self.justification.strip()) < 20:
+            raise ValidationError({"justification": "Donnez une justification précise (au moins 20 caractères)."})
+
+    def decider(self, utilisateur, approuver, commentaire=""):
+        if self.statut != "en_attente":
+            raise ValidationError("Cette demande a déjà été traitée.")
+        if self.demande_par_id == utilisateur.pk and not utilisateur.is_superuser:
+            raise ValidationError("La demande doit être approuvée par une autre personne que celle qui l'a faite.")
+        self.statut = "approuvee" if approuver else "rejetee"
+        self.decide_par = utilisateur
+        self.decide_le = timezone.now()
+        self.commentaire_decision = commentaire
+        self.save()
 
 
 def certification_valide(producteur, campagne, programme=None):

@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import CertificationProducteur, Parcelle, Producteur, Programme
+from .models import AugmentationQuota, CertificationProducteur, Parcelle, Producteur, Programme
 
 
 class ParcelleInline(admin.TabularInline):
@@ -30,7 +30,8 @@ class ParcelleAdmin(admin.ModelAdmin):
 
 @admin.register(Programme)
 class ProgrammeAdmin(admin.ModelAdmin):
-    list_display = ("code", "nom", "rendement_reference_kg_ha", "prime_kg", "numero_certificat", "actif")
+    list_display = ("code", "nom", "rendement_reference_kg_ha", "rendement_max_kg_ha", "prime_kg", "numero_certificat",
+                    "actif")
 
 
 @admin.register(CertificationProducteur)
@@ -39,3 +40,11 @@ class CertificationProducteurAdmin(admin.ModelAdmin):
     list_filter = ("programme", "campagne", "statut", "niveau")
     search_fields = ("producteur__nom", "producteur__code", "numero_membre")
     raw_id_fields = ("producteur",)
+
+
+@admin.register(AugmentationQuota)
+class AugmentationQuotaAdmin(admin.ModelAdmin):
+    list_display = ("certification", "quantite_kg", "motif", "statut", "demande_par", "decide_par", "demande_le")
+    list_filter = ("statut", "motif")
+    readonly_fields = ("statut", "demande_par", "decide_par", "decide_le")
+    raw_id_fields = ("certification",)

@@ -1,0 +1,13 @@
+{% extends "form.html" %}
+{% block avant_champs %}
+{% if certification %}
+<div class="calcul" style="margin:0 0 1rem">
+  <div><span>Producteur</span><strong>{{ certification.producteur.nom_complet }}{% if certification.producteur.numero_carte_ccc %} – carte {{ certification.producteur.numero_carte_ccc }}{% endif %}</strong></div>
+  <div><span>Superficie certifiée</span><strong>{{ certification.superficie|floatformat:"2g" }} ha</strong></div>
+  <div><span>Norme ({{ certification.programme.rendement_max_kg_ha|floatformat:"0g" }} kg/ha)</span><strong>{{ certification.plafond_norme_kg|floatformat:"0g" }} kg</strong></div>
+  <div><span>Quota actuel</span><strong>{{ certification.quota_kg|floatformat:"0g" }} kg</strong></div>
+  <div><span>Livré certifié</span><strong>{{ certification.volume_achete|floatformat:"0g" }} kg</strong></div>
+  <div><span>Reste</span><strong class="{% if certification.quota_epuise %}negatif{% endif %}">{{ certification.volume_restant|floatformat:"0g" }} kg</strong></div>
+</div>
+{% endif %}
+{% endblock %}

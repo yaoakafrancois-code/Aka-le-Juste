@@ -26,6 +26,7 @@
     <details><summary>Certification ▾</summary><div>
       <a href="{% url 'producteurs:certifications' %}">Production certifiée (RA, ARS 1000)</a>
       <a href="{% url 'producteurs:certification_creer' %}">Certifier un producteur</a>
+      <a href="{% url 'producteurs:augmentations' %}">Augmentations de quota</a>
       {% if user.is_staff %}<a href="{% url 'admin:producteurs_programme_changelist' %}">Programmes et primes</a>{% endif %}
     </div></details>
     <details><summary>Achats ▾</summary><div>

@@ -21,6 +21,9 @@ class AchatForm(FormulaireStyle):
         self.fields["programme"].queryset = Programme.objects.filter(actif=True)
         self.fields["programme"].empty_label = "Automatique (selon la certification du producteur)"
         self.fields["producteur"].queryset = Producteur.objects.filter(actif=True)
+        self.fields["producteur"].label_from_instance = lambda p: (
+            f"{p.nom_complet} – {p.code}" + (f" – carte {p.numero_carte_ccc}" if p.numero_carte_ccc else "")
+        )
         if not self.instance.pk:
             self.fields["campagne"].initial = Campagne.objects.active()
         # Limiter les parcelles à celles du producteur choisi.

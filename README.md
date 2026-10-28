@@ -30,14 +30,20 @@ Calculs utilisés :
 - Poids net = (poids brut − tare) × (1 − réfaction %)
 - Prix = prix du jour du magasin, sinon prix du jour général, sinon prix fixé de la campagne (ou prix saisi)
 - Montant = poids net × prix au kg (arrondi au franc)
-- Volume certifiable d'un producteur = production estimée saisie, sinon superficie certifiée × rendement de référence
+- Quota certifiable d'un producteur = superficie certifiée × rendement de la norme (1 000 kg/ha par défaut),
+  ou estimation saisie si elle est plus basse, + augmentations justifiées et approuvées
 - Poids certifié = min(poids net, volume certifiable restant) ; le reste est non certifié
 - Prime de certification = poids certifié × prime du programme (FCFA/kg)
 - Solde producteur = achats + primes − paiements − avances (positif : la coopérative doit payer ; négatif : avance à récupérer)
 
-Exemple : le producteur X a 3 ha certifiés RA et le rendement de référence est de 500 kg/ha, soit 1 500 kg
-certifiables. Il livre 500 kg à 2 800 F/kg : le reçu indique 500 kg certifiés RA, 1 400 000 F pour le cacao
-et la prime RA. Quand il dépasse 1 500 kg sur la campagne, le surplus est automatiquement acheté comme non certifié.
+Exemple : le producteur X (carte CI-778899) a 1 ha certifié RA. La norme limite la production à 1 t/ha : son quota
+est de 1 000 kg. On tape son nom ou son n° de carte dans la pesée : sa carte, sa superficie et son quota s'affichent.
+Il livre 500 kg à 2 800 F/kg : le reçu indique la carte, la superficie, « certifié RA », 1 400 000 F, la prime et
+« reste du quota : 500 kg ». Il livre encore 500 kg : reste 0, **quota de certification épuisé**. Ce qu'il livre
+ensuite est acheté en non certifié, sauf si une **augmentation de quota** est demandée avec une justification
+(superficie mesurée, rendement constaté à l'inspection, pièce jointe), puis approuvée par un responsable
+habilité, qui doit être une autre personne que le demandeur. Les demandes sont dans
+Certification → Augmentations de quota.
 
 ### Normes et documents officiels
 

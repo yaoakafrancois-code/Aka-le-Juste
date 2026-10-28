@@ -9,7 +9,7 @@ from achats.models import Achat
 from core.models import Campagne, Magasin, Section
 from paiements.models import Avance, Paiement, Prime, situation_producteur
 from core.models import PrixDuJour
-from producteurs.models import CertificationProducteur, Parcelle, Producteur, Programme
+from producteurs.models import AugmentationQuota, CertificationProducteur, Parcelle, Producteur, Programme
 from stocks.models import Exportateur, LigneLot, Livraison, Lot, stock_par_magasin
 
 
@@ -268,3 +268,92 @@ class RolesTests(Donnees):
         call_command("init_coop", "--demo", stdout=open("/dev/null", "w"))
         self.assertEqual(Producteur.objects.count(), 20)
         self.assertTrue(Livraison.objects.exists())
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class QuotaNormeTests(Donnees):
+    """Exemple de la coopérative : 1 ha, norme de 1 tonne par hectare."""
+
+    def setUp(self):
+        self.ra = Programme.objects.create(code="RA", nom="Rainforest Alliance")  # 1 000 kg/ha par défaut
+        Producteur.objects.filter(pk=self.producteur.pk).update(numero_carte_ccc="CI-123456")
+        Parcelle.objects.filter(pk=self.parcelle.pk).update(superficie_ha=Decimal("1"))
+        self.certif = CertificationProducteur.objects.create(
+            producteur=self.producteur, programme=self.ra, campagne=self.campagne)
+
+    def test_1_ha_puis_500_kg_puis_500_kg(self):
+        self.assertEqual(self.certif.quota_kg, Decimal("1000.00"))
+        self.achat(poids_brut=Decimal("500"), tare=Decimal("0"))
+        self.assertEqual(self.certif.volume_restant(), Decimal("500.00"))
+        self.assertFalse(self.certif.quota_epuise)
+        self.achat(poids_brut=Decimal("500"), tare=Decimal("0"))
+        self.assertEqual(self.certif.volume_restant(), Decimal("0"))
+        self.assertTrue(self.certif.quota_epuise)
+        troisieme = self.achat(poids_brut=Decimal("200"), tare=Decimal("0"))
+        self.assertEqual((troisieme.poids_certifie, troisieme.poids_non_certifie), (0, Decimal("200.00")))
+
+    def test_estimation_au_dela_de_la_norme_refusee(self):
+        from django.core.exceptions import ValidationError
+
+        self.certif.production_estimee_kg = Decimal("1500")
+        with self.assertRaises(ValidationError):
+            self.certif.full_clean()
+        self.certif.production_estimee_kg = Decimal("800")
+        self.certif.full_clean()
+
+    def test_augmentation_justifiee_et_approuvee(self):
+        from django.core.exceptions import ValidationError
+
+        self.achat(poids_brut=Decimal("1000"), tare=Decimal("0"))
+        agent = User.objects.create_user("agent", password="motdepasse123")
+        responsable = User.objects.create_user("responsable", password="motdepasse123")
+        demande = AugmentationQuota.objects.create(
+            certification=self.certif, quantite_kg=Decimal("300"), motif="nouvelle_parcelle",
+            justification="Nouvelle parcelle de 0,3 ha mesurée au GPS le 12/10.", demande_par=agent)
+        self.assertEqual(self.certif.quota_kg, Decimal("1000.00"))  # pas encore approuvée
+        with self.assertRaises(ValidationError):
+            demande.decider(agent, True)  # pas d'auto-approbation
+        demande.decider(responsable, True)
+        self.assertEqual(self.certif.quota_kg, Decimal("1300.00"))
+        a = self.achat(poids_brut=Decimal("400"), tare=Decimal("0"))
+        self.assertEqual((a.poids_certifie, a.poids_non_certifie), (Decimal("300.00"), Decimal("100.00")))
+
+    def test_ecrans(self):
+        admin = User.objects.create_superuser("admin", "admin@example.com", "motdepasse123")
+        self.client.force_login(admin)
+        infos = self.client.get(f"/producteurs/{self.producteur.pk}/infos.json").json()
+        self.assertEqual(infos["carte"], "CI-123456")
+        self.assertEqual(infos["certifications"][0]["restant"], 1000.0)
+        a = self.achat(poids_brut=Decimal("500"), tare=Decimal("0"))
+        recu = self.client.get(f"/achats/{a.pk}/recu/")
+        self.assertContains(recu, "CI-123456")
+        self.assertContains(recu, "Reste du quota")
+        self.assertContains(recu, "1 ha × 1 000 kg/ha (norme)")
+        r = self.client.post("/producteurs/quotas/demande/", {
+            "certification": self.certif.pk, "quantite_kg": "200", "motif": "rendement_constate",
+            "justification": "Comptage des cabosses lors de l'inspection interne du 05/10.",
+        })
+        self.assertRedirects(r, "/producteurs/quotas/")
+        demande = AugmentationQuota.objects.get()
+        self.assertEqual(demande.demande_par, admin)
+        self.client.post(f"/producteurs/quotas/{demande.pk}/decision/", {"decision": "approuver"})
+        demande.refresh_from_db()
+        self.assertEqual(demande.statut, "approuvee")  # un super-utilisateur peut approuver seul
+        self.assertEqual(self.client.get("/producteurs/quotas/").status_code, 200)
+
+    def test_agent_ne_peut_pas_approuver(self):
+        call_command("init_coop", stdout=open("/dev/null", "w"))
+        agent = User.objects.create_user("agent", password="motdepasse123")
+        agent.groups.add(Group.objects.get(name="Agent d'achat"))
+        chef = User.objects.create_user("chef", password="motdepasse123")
+        chef.groups.add(Group.objects.get(name="Administrateur"))
+        demande = AugmentationQuota.objects.create(
+            certification=self.certif, quantite_kg=Decimal("100"), motif="autre",
+            justification="Justification suffisamment détaillée pour le test.", demande_par=agent)
+        self.client.force_login(agent)
+        self.assertEqual(self.client.post(f"/producteurs/quotas/{demande.pk}/decision/",
+                                          {"decision": "approuver"}).status_code, 403)
+        self.client.force_login(chef)
+        self.client.post(f"/producteurs/quotas/{demande.pk}/decision/", {"decision": "approuver"})
+        demande.refresh_from_db()
+        self.assertEqual(demande.statut, "approuvee")

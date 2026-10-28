@@ -1,6 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import DetailView
@@ -118,11 +118,19 @@ def recu(request, pk):
     achat = get_object_or_404(
         Achat.objects.select_related("producteur__section", "magasin", "campagne", "parcelle", "programme"), pk=pk
     )
-    certification = None
-    if achat.programme_id:
-        certification = achat.producteur.certifications.filter(
-            campagne=achat.campagne, programme=achat.programme).first()
-    return render(request, "achats/recu.html", {"achat": achat, "certification": certification})
+    certifications = achat.producteur.certifications.filter(campagne=achat.campagne).select_related("programme")
+    certification = (certifications.filter(programme=achat.programme).first() if achat.programme_id
+                     else certifications.filter(statut="certifie").first())
+    quota = None
+    if certification is not None:
+        # Situation du quota au moment de ce reçu (achats antérieurs et celui-ci).
+        anterieurs = Achat.objects.filter(
+            producteur=achat.producteur, campagne=achat.campagne, programme=certification.programme,
+        ).filter(Q(date__lt=achat.date) | Q(date=achat.date, pk__lte=achat.pk))
+        livre = anterieurs.aggregate(p=Sum("poids_certifie"))["p"] or 0
+        quota = {"total": certification.quota_kg, "livre": livre,
+                 "reste": max(certification.quota_kg - livre, 0)}
+    return render(request, "achats/recu.html", {"achat": achat, "certification": certification, "quota": quota})
 
 
 @login_required

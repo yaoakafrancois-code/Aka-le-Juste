@@ -22,6 +22,10 @@ urlpatterns = [
     path("certifications/nouvelle/", views.CertificationCreation.as_view(), name="certification_creer"),
     path("certifications/<int:pk>/modifier/", views.CertificationModification.as_view(),
          name="certification_modifier"),
+    path("quotas/", views.AugmentationListe.as_view(), name="augmentations"),
+    path("quotas/demande/", views.AugmentationCreation.as_view(), name="augmentation_creer"),
+    path("quotas/<int:pk>/decision/", views.augmentation_decision, name="augmentation_decision"),
+    path("quotas/<int:pk>/piece/", views.augmentation_piece, name="augmentation_piece"),
     path("certifications/<int:pk>/supprimer/", views.CertificationSuppression.as_view(),
          name="certification_supprimer"),
 ]
