@@ -10,6 +10,7 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,6 +24,7 @@ jobs:
     name: Installateur et version portable Windows
     needs: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -42,6 +44,7 @@ jobs:
     name: Application Android
     needs: tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -76,6 +79,7 @@ jobs:
     name: Vérification sur un vrai Windows
     needs: windows
     runs-on: windows-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -96,9 +100,9 @@ jobs:
           if (-not (Test-Path "$env:USERPROFILE\Desktop\CacaoCoop.lnk")) { throw "Raccourci du bureau absent" }
           $serveur = Start-Process -PassThru -WorkingDirectory $dossier "$dossier\python\python.exe" -ArgumentList "lancer.py","--sans-navigateur"
           Start-Sleep -Seconds 12
-          $r = Invoke-WebRequest http://127.0.0.1:8000/ -UseBasicParsing
+          $r = Invoke-WebRequest http://127.0.0.1:8000/ -UseBasicParsing -TimeoutSec 60
           if ($r.Content -notmatch "Bienvenue dans CacaoCoop") { throw "Assistant d'installation absent" }
-          $c = Invoke-WebRequest http://127.0.0.1:8000/static/css/app.css -UseBasicParsing
+          $c = Invoke-WebRequest http://127.0.0.1:8000/static/css/app.css -UseBasicParsing -TimeoutSec 60
           if ($c.StatusCode -ne 200) { throw "Fichiers statiques inaccessibles" }
           Stop-Process -Id $serveur.Id -Force
           Start-Sleep -Seconds 2
@@ -113,6 +117,7 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     needs: [verifier-windows, android]
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
