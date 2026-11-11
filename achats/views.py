@@ -5,7 +5,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse_lazy
 from django.views.generic import DetailView
 
-from core.models import Campagne, Magasin, PrixDuJour
+from core.models import Cooperative, Campagne, Magasin, PrixDuJour
 from core.vues import AccesMixin, Creation, Liste, Modification, Suppression, reponse_csv
 from producteurs.models import Programme
 
@@ -70,9 +70,11 @@ class AchatFormMixin:
 
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
-        ctx["prix_campagnes"] = {str(c.pk): float(c.prix_kg) for c in Campagne.objects.all()}
+        codes = Cooperative.courante().codes_produits
+        ctx["prix_campagnes"] = {str(c.pk): {p: float(c.prix_fixe(p)) for p in codes} for c in Campagne.objects.all()}
         ctx["prix_du_jour"] = [
-            {"campagne": p.campagne_id, "date": p.date.isoformat(), "magasin": p.magasin_id, "prix": float(p.prix_kg)}
+            {"campagne": p.campagne_id, "date": p.date.isoformat(), "magasin": p.magasin_id, "prix": float(p.prix_kg),
+             "produit": p.produit}
             for p in PrixDuJour.objects.filter(campagne__active=True)
         ]
         objet = getattr(self, "object", None)

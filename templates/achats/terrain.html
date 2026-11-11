@@ -24,6 +24,7 @@ Les quotas affichés hors connexion sont une estimation ; le reçu définitif es
   <div class="calcul" id="t-quota" hidden{% if not est_cacao %} style="display:none"{% endif %}></div>
   <div class="formulaire" style="margin-top:1rem">
     <div class="champ"><label for="t-magasin">Magasin *</label><select id="t-magasin" required></select></div>
+    <div class="champ"{% if not est_cacao %} hidden{% endif %}><label for="t-produit">Produit *</label><select id="t-produit">{% for code, nom in cooperative.choix_produits %}<option value="{{ code }}">{{ nom }}</option>{% endfor %}</select></div>
     <div class="champ"><label for="t-parcelle">Parcelle</label><select id="t-parcelle"><option value="">---------</option></select></div>
     <div class="champ"><label for="t-sacs">Nombre de sacs *</label><input type="number" id="t-sacs" min="1" value="1" inputmode="numeric" required></div>
     <div class="champ"><label for="t-brut">Poids brut (kg) *</label><input type="number" id="t-brut" step="0.01" min="0" inputmode="decimal" required></div>
@@ -37,7 +38,7 @@ Les quotas affichés hors connexion sont une estimation ; le reçu définitif es
     <div><span>Poids net</span><strong id="t-net">–</strong></div>
     <div{% if not est_cacao %} hidden{% endif %}><span>dont certifié (estimation)</span><strong id="t-cert">–</strong></div>
     <div><span>Prix</span><strong id="t-prix">–</strong></div>
-    <div><span>Montant {{ produit.nom }}</span><strong id="t-montant">–</strong></div>
+    <div><span>Montant du produit</span><strong id="t-montant">–</strong></div>
     <div{% if not est_cacao %} hidden{% endif %}><span>Prime</span><strong id="t-prime">–</strong></div>
   </div>
   <p class="erreur" id="t-erreur"></p>
@@ -180,8 +181,9 @@ Les quotas affichés hors connexion sont une estimation ; le reçu définitif es
   function calculer() {
     var net = Math.max((valeur("t-brut") - valeur("t-tare")) * (1 - valeur("t-refaction") / 100), 0);
     var magasin = donnees ? donnees.magasins.filter(function (m) { return String(m.id) === $("t-magasin").value; })[0] : null;
-    var prix = magasin ? magasin.prix_kg : 0;
-    var cert = certificationRetenue(), certifie = 0, restant = 0;
+    var produitChoisi = $("t-produit").value;
+    var prix = magasin ? ((magasin.prix || {})[produitChoisi] !== undefined ? magasin.prix[produitChoisi] : magasin.prix_kg) : 0;
+    var cert = produitChoisi === "cacao" ? certificationRetenue() : null, certifie = 0, restant = 0;
     if (cert) {
       restant = Math.max(cert.restant - enAttenteCertifie(producteur.id, cert.programme), 0);
       certifie = Math.min(net, restant);
@@ -211,7 +213,7 @@ Les quotas affichés hors connexion sont une estimation ; le reçu définitif es
     }
     return { net: net, prix: prix, certifie: certifie, cert: cert, magasin: magasin };
   }
-  ["t-brut", "t-tare", "t-refaction", "t-magasin"].forEach(function (id) {
+  ["t-brut", "t-tare", "t-refaction", "t-magasin", "t-produit"].forEach(function (id) {
     $(id).addEventListener("input", calculer); $(id).addEventListener("change", calculer);
   });
   $("t-magasin").addEventListener("change", function () { ecrire("cacaocoop-terrain-magasin", this.value); });
@@ -231,7 +233,7 @@ Les quotas affichés hors connexion sont une estimation ; le reçu définitif es
       bon: "T-" + maintenant.toISOString().slice(2, 10).replace(/-/g, "") + "-" + String(file.length + envoyes.length + 1).padStart(3, "0"),
       saisi_le: maintenant.toISOString(),
       date: donnees.date === maintenant.toISOString().slice(0, 10) ? donnees.date : maintenant.toISOString().slice(0, 10),
-      campagne: donnees.campagne.id, magasin: c.magasin.id, producteur: producteur.id,
+      campagne: donnees.campagne.id, magasin: c.magasin.id, produit: $("t-produit").value, producteur: producteur.id,
       parcelle: $("t-parcelle").value || null, nombre_sacs: Math.max(parseInt($("t-sacs").value, 10) || 1, 1),
       poids_brut: valeur("t-brut"), tare: valeur("t-tare"), humidite: $("t-humidite").value ? valeur("t-humidite") : null,
       refaction: valeur("t-refaction"), qualite: $("t-qualite").value, observations: $("t-observations").value,

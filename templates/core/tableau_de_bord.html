@@ -9,7 +9,7 @@
 </div>
 
 <div class="grille">
-  <div class="indicateur"><div class="libelle">{{ produit.titre }} acheté</div><div class="valeur">{{ tonnage|floatformat:"0g" }} kg</div><div class="detail">{{ nb_achats }} pesées · {{ nb_producteurs_livreurs }} producteurs livreurs</div></div>
+  <div class="indicateur"><div class="libelle">{{ produit.titre }} acheté</div><div class="valeur">{{ tonnage|floatformat:"0g" }} kg</div><div class="detail">{% if est_cacao %}{% for nom, poids in tonnage_par_produit %}{{ nom }} : {{ poids|floatformat:"0g" }} kg · {% endfor %}{% endif %}{{ nb_achats }} pesées · {{ nb_producteurs_livreurs }} producteurs livreurs</div></div>
   {% if est_cacao %}<div class="indicateur vert"><div class="libelle">dont certifié</div><div class="valeur">{{ tonnage_certifie|floatformat:"0g" }} kg</div><div class="detail">{% for p in par_programme %}{{ p.programme__code }} : {{ p.poids|floatformat:"0g" }} kg{% if not forloop.last %} · {% endif %}{% empty %}Aucun achat certifié{% endfor %}<br>non certifié : {{ tonnage_non_certifie|floatformat:"0g" }} kg</div></div>{% endif %}
   <div class="indicateur"><div class="libelle">Valeur des achats</div><div class="valeur">{{ total_achats|floatformat:"0g" }} F</div><div class="detail">+ primes (dont certification) {{ total_primes|floatformat:"0g" }} F</div></div>
   <div class="indicateur vert"><div class="libelle">Payé aux producteurs</div><div class="valeur">{{ total_paiements|floatformat:"0g" }} F</div><div class="detail">dont avances {{ total_avances|floatformat:"0g" }} F (en plus)</div></div>

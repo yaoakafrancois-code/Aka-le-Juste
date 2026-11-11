@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 
-from core.models import Campagne
+from core.models import Campagne, Cooperative
 from core.vues import FormulaireStyle
 from producteurs.models import Programme
 
@@ -11,18 +11,35 @@ from .models import Livraison, Lot
 class LotForm(FormulaireStyle):
     class Meta:
         model = Lot
-        fields = ["magasin", "campagne", "programme", "date_creation", "observations"]
+        fields = ["magasin", "campagne", "produit", "programme", "date_creation", "observations"]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["programme"].queryset = Programme.objects.filter(actif=True)
         self.fields["programme"].empty_label = "Conventionnel (non certifié)"
+        coop = Cooperative.courante()
+        self.fields["produit"].choices = coop.choix_produits
+        self.fields["produit"].required = False
+        if not coop.est_cacao:
+            self.fields["produit"].widget = forms.HiddenInput()
+            self.fields["programme"].widget = forms.HiddenInput()
         if not self.instance.pk:
+            self.fields["produit"].initial = coop.codes_produits[0]
             self.fields["campagne"].initial = Campagne.objects.active()
         elif self.instance.lignes.exists():
             # Le contenu du lot dépend du magasin, de la campagne et du programme.
-            for nom in ("magasin", "campagne", "programme"):
+            for nom in ("magasin", "campagne", "produit", "programme"):
                 self.fields[nom].disabled = True
+
+
+    def clean_produit(self):
+        return self.cleaned_data.get("produit") or Cooperative.courante().codes_produits[0]
+
+    def clean(self):
+        donnees = super().clean()
+        if donnees.get("produit") == "cafe" and donnees.get("programme"):
+            self.add_error("programme", "Les lots de café sont conventionnels : la certification est gérée pour le cacao.")
+        return donnees
 
 
 class AnalyseQualiteForm(FormulaireStyle):

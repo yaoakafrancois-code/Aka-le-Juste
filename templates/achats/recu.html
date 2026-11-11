@@ -11,7 +11,7 @@
     <div><strong>{{ cooperative.nom }}</strong><br>{{ cooperative.adresse }}<br>{{ cooperative.telephone }}
       {% if cooperative.numero_agrement %}<br>Agrément : {{ cooperative.numero_agrement }}{% endif %}
       {% if cooperative.code_ccc %}<br>Code CCC : {{ cooperative.code_ccc }}{% endif %}</div>
-    <div style="text-align:right"><strong>REÇU D'ACHAT – {{ produit.titre|upper }}</strong><br>N° {{ achat.numero }}<br>Date : {{ achat.date|date:"d/m/Y" }}<br>Campagne : {{ achat.campagne }}
+    <div style="text-align:right"><strong>REÇU D'ACHAT – {{ achat.get_produit_display|upper }}</strong><br>N° {{ achat.numero }}<br>Date : {{ achat.date|date:"d/m/Y" }}<br>Campagne : {{ achat.campagne }}
       <br>{% if achat.est_certifie and achat.poids_non_certifie %}<span class="badge orange">Certifié {{ achat.programme.code }} + non certifié</span>{% elif achat.est_certifie %}<span class="badge vert">Certifié {{ achat.programme.code }}</span>{% else %}<span class="badge gris">Non certifié</span>{% endif %}</div>
   </div>
   <dl class="fiche">
@@ -30,9 +30,9 @@
   <table style="margin-top:1rem">
     <thead><tr><th>Désignation</th><th class="n">Poids (kg)</th><th class="n">Prix / kg</th><th class="n">Montant (F)</th></tr></thead>
     <tbody>
-      {% if achat.poids_certifie %}<tr><td>{{ produit.titre }} certifié {{ achat.programme.code }}</td><td class="n">{{ achat.poids_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_certifie|floatformat:"0g" }}</td></tr>{% endif %}
-      {% if achat.poids_non_certifie %}<tr><td>{{ produit.titre }}{% if est_cacao %} non certifié (conventionnel){% endif %}</td><td class="n">{{ achat.poids_non_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_non_certifie|floatformat:"0g" }}</td></tr>{% endif %}
-      <tr><td><strong>Total {{ produit.nom }}</strong> ({{ achat.get_source_prix_display|lower }})</td><td class="n">{{ achat.poids_net|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n"><strong>{{ achat.montant|floatformat:"0g" }}</strong></td></tr>
+      {% if achat.poids_certifie %}<tr><td>{{ achat.get_produit_display }} certifié {{ achat.programme.code }}</td><td class="n">{{ achat.poids_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_certifie|floatformat:"0g" }}</td></tr>{% endif %}
+      {% if achat.poids_non_certifie %}<tr><td>{{ achat.get_produit_display }}{% if achat.produit == "cacao" %} non certifié (conventionnel){% endif %}</td><td class="n">{{ achat.poids_non_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_non_certifie|floatformat:"0g" }}</td></tr>{% endif %}
+      <tr><td><strong>Total {{ achat.get_produit_display|lower }}</strong> ({{ achat.get_source_prix_display|lower }})</td><td class="n">{{ achat.poids_net|floatformat:"2g" }}</td><td class="n">{{ achat.prix_kg|floatformat:"0g" }}</td><td class="n"><strong>{{ achat.montant|floatformat:"0g" }}</strong></td></tr>
       {% if achat.montant_prime %}<tr><td>Prime de certification {{ achat.programme.code }}</td><td class="n">{{ achat.poids_certifie|floatformat:"2g" }}</td><td class="n">{{ achat.prime_kg|floatformat:"0g" }}</td><td class="n">{{ achat.montant_prime|floatformat:"0g" }}</td></tr>{% endif %}
     </tbody>
     <tfoot><tr><td colspan="3">NET À PAYER AU PRODUCTEUR</td><td class="n">{{ achat.montant_total|floatformat:"0g" }} F</td></tr></tfoot>

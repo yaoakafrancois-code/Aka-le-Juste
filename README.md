@@ -15,10 +15,13 @@ Il fonctionne de deux façons, avec le même code :
 
 ## Nouveautés : multi-produits et vue du propriétaire
 
-- **Trois produits** : à la première installation, on choisit **cacao**, **café**, **hévéa** ou **palmier à huile**
+- **Trois produits** : à la première installation, on choisit **café-cacao**, **hévéa** ou **palmier à huile**
   (modifiable ensuite dans Paramètres > Coopérative). Pour l'hévéa et le palmier, la pesée se fait au
   pont-bascule (véhicule plein, véhicule vide) et les écrans propres au cacao (certification, humidité, grade)
   sont masqués.
+- **Café et cacao ensemble** : dans la filière café-cacao, chaque pesée précise le produit (cacao ou café).
+  Chacun a son prix (prix fixé de la campagne et prix du jour) et son stock ; un lot ne mélange jamais les deux.
+  La certification (quotas RA, ARS 1000) s'applique au cacao ; le café est acheté en conventionnel.
 - **Vue du propriétaire** (menu « Propriétaire ») : achats du jour, des 7 derniers jours et de la campagne,
   argent payé, reste à payer, stock par magasin, dernières pesées. Lisible sur téléphone.
 - **Bureau sans internet permanent** : le magasinier clique sur « Envoyer au propriétaire » quand la connexion

@@ -7,7 +7,7 @@ from django.db.models import Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import Campagne, Magasin
+from core.models import PRODUIT_ACHAT_CHOICES, Cooperative, Campagne, Magasin
 from producteurs.models import Parcelle, Producteur, Programme, certification_valide
 
 DEUX = Decimal("0.01")
@@ -44,6 +44,7 @@ class Achat(models.Model):
         help_text="Parcelle d'origine (traçabilité).",
     )
     magasin = models.ForeignKey(Magasin, on_delete=models.PROTECT, related_name="achats")
+    produit = models.CharField(max_length=10, choices=PRODUIT_ACHAT_CHOICES, default="cacao")
     nombre_sacs = models.PositiveIntegerField("nombre de sacs", default=1)
     poids_brut = models.DecimalField("poids brut (kg)", max_digits=10, decimal_places=2)
     tare = models.DecimalField("tare (kg)", max_digits=8, decimal_places=2, default=Decimal("0"),
@@ -118,8 +119,8 @@ class Achat(models.Model):
 
     def certification(self):
         """Certification du producteur utilisée pour cet achat (ou None)."""
-        if self.vendre_non_certifie:
-            return None
+        if self.vendre_non_certifie or self.produit != "cacao":
+            return None  # les quotas de certification sont calculés pour le cacao
         return certification_valide(self.producteur, self.campagne, self.programme)
 
     def clean(self):
@@ -139,12 +140,15 @@ class Achat(models.Model):
     def repartir(self):
         """Calcule poids net, part certifiée / non certifiée, prix, montant et prime."""
         self.poids_net = self.calculer_poids_net(self.poids_brut, self.tare, self.refaction)
-        applicable = self.campagne.prix_applicable(self.date, self.magasin)
+        codes = Cooperative.courante().codes_produits
+        if self.produit not in codes:
+            self.produit = codes[0]
+        applicable = self.campagne.prix_applicable(self.date, self.magasin, self.produit)
         if self.prix_kg is None:
             self.prix_kg = applicable
         if self.prix_kg != applicable:
             self.source_prix = "manuel"
-        elif applicable != self.campagne.prix_kg:
+        elif applicable != self.campagne.prix_fixe(self.produit):
             self.source_prix = "jour"
         else:
             self.source_prix = "campagne"

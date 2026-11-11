@@ -58,7 +58,8 @@ class LotListe(Liste):
 
 def achats_disponibles(lot):
     """Achats du magasin et de la campagne du lot dont une part du bon type n'est pas encore placée."""
-    achats = Achat.objects.filter(magasin=lot.magasin, campagne=lot.campagne).select_related("producteur")
+    achats = Achat.objects.filter(magasin=lot.magasin, campagne=lot.campagne,
+                                  produit=lot.produit).select_related("producteur")
     if lot.certifie:
         achats = achats.filter(programme=lot.programme, poids_certifie__gt=0)
         champ = "poids_certifie"

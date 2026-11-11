@@ -11,14 +11,20 @@ class AchatForm(FormulaireStyle):
     class Meta:
         model = Achat
         fields = [
-            "date", "campagne", "magasin", "producteur", "parcelle", "nombre_sacs", "poids_brut", "tare",
+            "date", "campagne", "magasin", "produit", "producteur", "parcelle", "nombre_sacs", "poids_brut", "tare",
             "humidite", "refaction", "qualite", "prix_kg", "programme", "vendre_non_certifie", "observations",
         ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["prix_kg"].required = False
-        if not Cooperative.courante().est_cacao:
+        coop = Cooperative.courante()
+        self.fields["produit"].choices = coop.choix_produits
+        self.fields["produit"].required = False
+        if not self.instance.pk:
+            self.fields["produit"].initial = coop.codes_produits[0]
+        if not coop.est_cacao:
+            self.fields["produit"].widget = forms.HiddenInput()
             # Hévéa, palmier : pas de certification cacao, ni humidité, ni grade ; pesée au pont-bascule.
             for champ in ("humidite", "qualite", "programme", "vendre_non_certifie"):
                 self.fields[champ].widget = forms.HiddenInput()
@@ -41,6 +47,9 @@ class AchatForm(FormulaireStyle):
             self.fields["parcelle"].queryset = Parcelle.objects.filter(producteur_id=producteur_id)
         else:
             self.fields["parcelle"].queryset = Parcelle.objects.none()
+
+    def clean_produit(self):
+        return self.cleaned_data.get("produit") or Cooperative.courante().codes_produits[0]
 
     def clean(self):
         donnees = super().clean()

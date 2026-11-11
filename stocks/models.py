@@ -6,7 +6,7 @@ from django.db.models import Sum
 from django.urls import reverse
 from django.utils import timezone
 
-from core.models import Campagne, Magasin
+from core.models import PRODUIT_ACHAT_CHOICES, Campagne, Cooperative, Magasin
 from producteurs.models import Programme
 
 # Limites de qualité (% en nombre de fèves sur l'épreuve à la coupe) par grade,
@@ -58,6 +58,8 @@ class Lot(models.Model):
     numero = models.CharField("n° de lot", max_length=30, unique=True, blank=True)
     magasin = models.ForeignKey(Magasin, on_delete=models.PROTECT, related_name="lots")
     campagne = models.ForeignKey(Campagne, on_delete=models.PROTECT, related_name="lots")
+    produit = models.CharField(max_length=10, choices=PRODUIT_ACHAT_CHOICES, default="cacao",
+                               help_text="Un lot ne contient qu'un seul produit : le café et le cacao ne sont jamais mélangés.")
     programme = models.ForeignKey(
         Programme, on_delete=models.PROTECT, null=True, blank=True, related_name="lots",
         verbose_name="programme de certification", help_text="Laisser vide pour un lot conventionnel (non certifié).",
@@ -93,6 +95,8 @@ class Lot(models.Model):
         super().save(*args, **kwargs)
         if not self.numero:
             prefixe = self.programme.code.upper() if self.programme_id else "CONV"
+            if self.produit == "cafe":
+                prefixe = "CAFE-" + prefixe
             self.numero = f"LOT-{self.magasin.code}-{prefixe}-{self.pk:05d}"
             super().save(update_fields=["numero"])
 
@@ -102,10 +106,13 @@ class Lot(models.Model):
 
     @property
     def type_produit(self):
-        return f"Certifié {self.programme.code}" if self.programme_id else "Conventionnel (non certifié)"
+        type_ = f"Certifié {self.programme.code}" if self.programme_id else "Conventionnel (non certifié)"
+        return f"Café – {type_}" if self.produit == "cafe" else type_
 
     def grade_calcule(self):
-        """Grade selon l'analyse ; None si l'analyse est incomplète."""
+        """Grade selon l'analyse ; None si l'analyse est incomplète (norme cacao uniquement)."""
+        if self.produit != "cacao":
+            return None
         valeurs = {"moisi": self.taux_moisi, "ardoise": self.taux_ardoise, "defauts": self.taux_defauts}
         if any(v is None for v in valeurs.values()):
             return None
@@ -163,6 +170,8 @@ class LigneLot(models.Model):
         """Place dans le lot la part disponible de l'achat qui correspond au type du lot. Renvoie la ligne ou None."""
         if achat.magasin_id != lot.magasin_id or achat.campagne_id != lot.campagne_id:
             return None
+        if achat.produit != lot.produit:
+            return None  # pas de mélange café / cacao
         if lot.certifie and achat.programme_id != lot.programme_id:
             return None
         disponible = achat.poids_disponible(lot.certifie)
@@ -306,7 +315,12 @@ def stock_par_magasin(campagne=None):
         certifie = somme(achats, "poids_certifie") - somme(livrees.filter(certifie=True), "poids")
         non_certifie = somme(achats, "poids_non_certifie") - somme(livrees.filter(certifie=False), "poids")
         poids = certifie + non_certifie
+        par_produit = []
+        for code, nom in Cooperative.courante().choix_produits:
+            par_produit.append({"code": code, "nom": nom, "poids": (
+                somme(achats.filter(produit=code), "poids_net") - somme(livrees.filter(achat__produit=code), "poids"))})
         lignes.append({
+            "par_produit": par_produit,
             "magasin": magasin,
             "poids": poids,
             "certifie": certifie,

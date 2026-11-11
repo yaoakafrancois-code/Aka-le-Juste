@@ -50,7 +50,7 @@ class InstallationForm(forms.Form):
     # Coopérative
     produit = forms.ChoiceField(
         label="Produit acheté", choices=PRODUIT_CHOICES, initial="cacao",
-        help_text="Cacao, café, hévéa ou palmier à huile. Les écrans s'adaptent (certification et humidité pour le cacao, "
+        help_text="Café-cacao, hévéa ou palmier à huile. Les écrans s'adaptent (certification et humidité pour le café-cacao, "
                   "pont-bascule pour l'hévéa et le palmier).",
     )
     nom = forms.CharField(label="Nom de la coopérative ou du point d'achat", max_length=200)
@@ -72,7 +72,10 @@ class InstallationForm(forms.Form):
     campagne = forms.CharField(label="Campagne", max_length=60)
     date_debut = forms.DateField(label="Début de la campagne", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
     date_fin = forms.DateField(label="Fin de la campagne", widget=forms.DateInput(attrs={"type": "date"}, format="%Y-%m-%d"))
-    prix_kg = forms.DecimalField(label="Prix fixé bord champ (FCFA/kg)", min_value=0, decimal_places=2)
+    prix_kg = forms.DecimalField(label="Prix fixé bord champ (FCFA/kg) – cacao, hévéa ou palmier", min_value=0,
+                                 decimal_places=2)
+    prix_cafe_kg = forms.DecimalField(label="Prix fixé du café (FCFA/kg)", min_value=0, decimal_places=2,
+                                      required=False, help_text="Seulement pour la filière café-cacao.")
     magasin_code = forms.CharField(label="Code du magasin", max_length=20, initial="M01")
     magasin_nom = forms.CharField(label="Nom du magasin", max_length=100, initial="Magasin central")
     magasin_localite = forms.CharField(label="Localité du magasin", max_length=100, required=False)
@@ -106,7 +109,8 @@ SECTIONS = [
     ("Le produit et la structure", ["produit", "nom", "sigle", "code_ccc", "numero_agrement", "region", "departement", "sous_prefecture",
                         "telephone"]),
     ("Le compte administrateur", ["identifiant", "prenom", "nom_famille", "mot_de_passe", "confirmation"]),
-    ("La campagne et le premier magasin", ["campagne", "date_debut", "date_fin", "prix_kg", "magasin_code",
+    ("La campagne et le premier magasin", ["campagne", "date_debut", "date_fin", "prix_kg", "prix_cafe_kg",
+                                           "magasin_code",
                                            "magasin_nom", "magasin_localite"]),
     ("Essai", ["demo"]),
 ]
@@ -134,7 +138,7 @@ def assistant(request):
                 Cooperative.objects.filter(pk=coop.pk).update(nom=d["nom"], sigle=d["sigle"], produit=d["produit"])
             else:
                 Campagne.objects.create(libelle=d["campagne"], date_debut=d["date_debut"], date_fin=d["date_fin"],
-                                        prix_kg=d["prix_kg"], active=True)
+                                        prix_kg=d["prix_kg"], prix_cafe_kg=d["prix_cafe_kg"] or 0, active=True)
                 Magasin.objects.get_or_create(code=d["magasin_code"], defaults={
                     "nom": d["magasin_nom"], "localite": d["magasin_localite"]})
             admin = User.objects.create_superuser(d["identifiant"], "", d["mot_de_passe"],

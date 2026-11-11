@@ -15,7 +15,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from core.models import Campagne, Magasin
+from core.models import Cooperative, Campagne, Magasin
 from producteurs.models import CertificationProducteur, Producteur
 
 from .forms import AchatForm
@@ -35,6 +35,7 @@ def donnees(request):
     if campagne is None:
         return JsonResponse({"erreur": "Aucune campagne active."}, status=400)
     aujourd_hui = timezone.localdate()
+    codes = Cooperative.courante().codes_produits
     certifications = {}
     for c in CertificationProducteur.objects.filter(campagne=campagne).select_related("programme", "producteur"):
         certifications.setdefault(c.producteur_id, []).append({
@@ -56,7 +57,8 @@ def donnees(request):
         "date": aujourd_hui.isoformat(),
         "campagne": {"id": campagne.pk, "libelle": str(campagne)},
         "magasins": [
-            {"id": m.pk, "nom": str(m), "prix_kg": float(campagne.prix_applicable(aujourd_hui, m))}
+            {"id": m.pk, "nom": str(m), "prix_kg": float(campagne.prix_applicable(aujourd_hui, m, codes[0])),
+             "prix": {p: float(campagne.prix_applicable(aujourd_hui, m, p)) for p in codes}}
             for m in Magasin.objects.all()
         ],
         "producteurs": producteurs,
@@ -81,7 +83,7 @@ def synchroniser(request):
     if existant:
         return JsonResponse(resultat(existant, deja=True))
 
-    champs = ("date", "campagne", "magasin", "producteur", "parcelle", "nombre_sacs", "poids_brut", "tare",
+    champs = ("date", "campagne", "magasin", "produit", "producteur", "parcelle", "nombre_sacs", "poids_brut", "tare",
               "humidite", "refaction", "qualite", "observations")
     form = AchatForm(data={k: saisie.get(k) if saisie.get(k) is not None else "" for k in champs})
     if not form.is_valid():

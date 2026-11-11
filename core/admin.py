@@ -19,15 +19,15 @@ class PrixDuJourInline(admin.TabularInline):
 
 @admin.register(Campagne)
 class CampagneAdmin(admin.ModelAdmin):
-    list_display = ("libelle", "date_debut", "date_fin", "prix_kg", "active")
+    list_display = ("libelle", "date_debut", "date_fin", "prix_kg", "prix_cafe_kg", "active")
     list_editable = ("active",)
     inlines = [PrixDuJourInline]
 
 
 @admin.register(PrixDuJour)
 class PrixDuJourAdmin(admin.ModelAdmin):
-    list_display = ("date", "campagne", "magasin", "prix_kg")
-    list_filter = ("campagne", "magasin")
+    list_display = ("date", "produit", "campagne", "magasin", "prix_kg")
+    list_filter = ("produit", "campagne", "magasin")
     date_hierarchy = "date"
 
 

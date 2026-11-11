@@ -449,7 +449,7 @@ class MultiProduitsTests(Donnees):
     def test_ecran_de_pesee_hevea(self):
         page = self.client.get("/achats/nouveau/").content.decode()
         self.assertIn("véhicule plein au pont-bascule", page)
-        self.assertIn("Montant hévéa", page)
+        self.assertRegex(page, r'type="hidden"[^>]*name="produit"')
         self.assertNotIn("Humidité", page)
         self.assertRegex(page, r'type="hidden"[^>]*name="qualite"')
         self.assertNotIn("Certification ▾", page)
@@ -464,24 +464,18 @@ class MultiProduitsTests(Donnees):
         self.assertRedirects(r, f"/achats/{achat.pk}/")
         self.assertEqual(achat.poids_net, Decimal("1500.00"))
         self.assertEqual(achat.montant, Decimal("450000"))
+        self.assertEqual(achat.produit, "hevea")
         self.assertEqual(achat.poids_certifie, Decimal("0"))
         recu = self.client.get(f"/achats/{achat.pk}/recu/").content.decode()
         self.assertIn("HÉVÉA", recu)
         self.assertNotIn("CACAO", recu.upper().replace("AKAGRI", ""))
-
-    def test_cafe_comme_le_cacao(self):
-        Cooperative.objects.update(produit="cafe")
-        page = self.client.get("/achats/nouveau/").content.decode()
-        self.assertIn("Humidité", page)
-        self.assertIn("Certification ▾", page)
-        self.assertIn("Montant café", page)
 
     def test_ecran_cacao_inchange(self):
         Cooperative.objects.update(produit="cacao")
         page = self.client.get("/achats/nouveau/").content.decode()
         self.assertIn("Humidité", page)
         self.assertIn("Certification ▾", page)
-        self.assertIn("Montant cacao", page)
+        self.assertRegex(page, r'<select name="produit"')
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
@@ -544,3 +538,61 @@ class ProprietaireTests(Donnees):
         })
         self.assertRedirects(r, "/")
         self.assertEqual(Cooperative.objects.get().produit, "hevea")
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class CafeCacaoTests(Donnees):
+    """Café et cacao dans la même installation : prix et stocks séparés, lots jamais mélangés."""
+
+    def setUp(self):
+        Cooperative.objects.create(nom="COOP Café-Cacao", produit="cacao")
+        Campagne.objects.filter(pk=self.campagne.pk).update(prix_cafe_kg=Decimal("1500"))
+        self.campagne.refresh_from_db()
+        self.client.force_login(User.objects.get(username="proprietaire"))
+
+    def test_prix_par_produit(self):
+        cacao = self.achat()
+        cafe = self.achat(produit="cafe")
+        self.assertEqual(cacao.montant, Decimal("280000"))   # 100 kg x 2 800
+        self.assertEqual(cafe.montant, Decimal("150000"))    # 100 kg x 1 500
+        self.assertEqual(cafe.source_prix, "campagne")
+        PrixDuJour.objects.create(campagne=self.campagne, date=date(2026, 10, 16), prix_kg=Decimal("1600"),
+                                  produit="cafe")
+        self.assertEqual(self.achat(produit="cafe", date=date(2026, 10, 16)).prix_kg, Decimal("1600"))
+        self.assertEqual(self.achat(date=date(2026, 10, 16)).prix_kg, Decimal("2800"))  # le cacao ne bouge pas
+
+    def test_saisie_cafe_par_l_ecran(self):
+        r = self.client.post("/achats/nouveau/", {
+            "date": "2026-10-20", "campagne": self.campagne.pk, "magasin": self.magasin.pk, "produit": "cafe",
+            "producteur": self.producteur.pk, "nombre_sacs": 2, "poids_brut": "130", "tare": "2",
+            "refaction": "0", "qualite": "grade1", "prix_kg": "",
+        })
+        achat = Achat.objects.get()
+        self.assertRedirects(r, f"/achats/{achat.pk}/")
+        self.assertEqual(achat.produit, "cafe")
+        self.assertEqual(achat.montant, Decimal("192000"))  # 128 kg x 1 500
+        self.assertContains(self.client.get(f"/achats/{achat.pk}/recu/"), "REÇU D'ACHAT – CAFÉ")
+
+    def test_cafe_jamais_certifie(self):
+        programme = Programme.objects.create(code="RA", nom="Rainforest Alliance", prime_kg=Decimal("50"))
+        CertificationProducteur.objects.create(producteur=self.producteur, campagne=self.campagne,
+                                               programme=programme, statut="certifie",
+                                               production_estimee_kg=Decimal("1000"))
+        self.assertEqual(self.achat(produit="cafe").poids_certifie, Decimal("0"))
+        self.assertGreater(self.achat().poids_certifie, Decimal("0"))
+
+    def test_lots_et_stock_separes(self):
+        cacao, cafe = self.achat(), self.achat(produit="cafe", poids_brut=Decimal("63"))
+        lot_cafe = Lot.objects.create(magasin=self.magasin, campagne=self.campagne, produit="cafe")
+        self.assertTrue(lot_cafe.numero.startswith("LOT-M01-CAFE-"))
+        self.assertIsNone(LigneLot.placer(lot_cafe, cacao))       # le cacao est refusé dans un lot de café
+        self.assertIsNotNone(LigneLot.placer(lot_cafe, cafe))
+        page = self.client.get(f"/stocks/lots/{lot_cafe.pk}/")
+        self.assertEqual(page.status_code, 200)
+        ligne = next(l for l in stock_par_magasin(self.campagne) if l["magasin"] == self.magasin)
+        self.assertEqual({p["code"]: p["poids"] for p in ligne["par_produit"]},
+                         {"cacao": Decimal("100.00"), "cafe": Decimal("60.00")})
+        resume = self.client.get("/proprietaire/").context["r"]
+        self.assertEqual([(p["nom"], p["poids"]) for p in resume["par_produit"]], [("Cacao", 100.0), ("Café", 60.0)])
+        self.assertEqual(self.client.get("/stocks/").status_code, 200)
+        self.assertEqual(self.client.get("/").status_code, 200)

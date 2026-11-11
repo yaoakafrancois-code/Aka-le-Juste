@@ -50,6 +50,8 @@ def tableau_de_bord(request):
         "superficie": _somme(Parcelle.objects.all(), "superficie_ha"),
         "parcelles_geolocalisees": Parcelle.objects.filter(latitude__isnull=False, longitude__isnull=False).count(),
         "tonnage": _somme(achats, "poids_net"),
+        "tonnage_par_produit": [(nom, _somme(achats.filter(produit=code), "poids_net"))
+                                for code, nom in Cooperative.courante().choix_produits],
         "tonnage_certifie": _somme(achats, "poids_certifie"),
         "tonnage_non_certifie": _somme(achats, "poids_non_certifie"),
         "par_programme": achats.filter(poids_certifie__gt=0).values("programme__code", "programme__nom")
@@ -103,7 +105,7 @@ def manifeste(request):
     return JsonResponse({
         "name": f"Akagri – {coop}",
         "short_name": "Akagri",
-        "description": "Gestion des achats, des pesées et des stocks (cacao, café, hévéa, palmier à huile)",
+        "description": "Gestion des achats, des pesées et des stocks (café-cacao, hévéa, palmier à huile)",
         "lang": "fr",
         "start_url": "/",
         "scope": "/",

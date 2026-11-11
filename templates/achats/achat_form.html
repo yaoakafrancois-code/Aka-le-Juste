@@ -15,7 +15,7 @@
   <div{% if not est_cacao %} hidden{% endif %}><span>dont certifié</span><strong id="calc-cert">–</strong></div>
   <div{% if not est_cacao %} hidden{% endif %}><span>dont non certifié</span><strong id="calc-conv">–</strong></div>
   <div><span>Prix appliqué</span><strong id="calc-prix">–</strong></div>
-  <div><span>Montant {{ produit.nom }}</span><strong id="calc-montant">–</strong></div>
+  <div><span>Montant du produit</span><strong id="calc-montant">–</strong></div>
   <div{% if not est_cacao %} hidden{% endif %}><span>Prime certification</span><strong id="calc-prime">–</strong></div>
 </div>
 {% endblock %}
@@ -33,19 +33,19 @@
   var fmt = function (n, d) { return n.toLocaleString("fr-FR", { minimumFractionDigits: d, maximumFractionDigits: d }); };
 
   function prixApplicable() {
-    var c = $("id_campagne").value, d = $("id_date").value, m = $("id_magasin").value;
+    var c = $("id_campagne").value, d = $("id_date").value, m = $("id_magasin").value, pr = $("id_produit").value;
     var general = null, local = null;
     prixDuJour.forEach(function (p) {
-      if (String(p.campagne) !== c || p.date !== d) return;
+      if (String(p.campagne) !== c || p.date !== d || p.produit !== pr) return;
       if (p.magasin === null) general = p; else if (String(p.magasin) === m) local = p;
     });
     if (local) return { prix: local.prix, source: "prix du jour (magasin)" };
     if (general) return { prix: general.prix, source: "prix du jour" };
-    return { prix: prixCampagnes[c] || 0, source: "prix fixé de la campagne" };
+    return { prix: (prixCampagnes[c] || {})[pr] || 0, source: "prix fixé de la campagne" };
   }
 
   function certificationRetenue() {
-    if ($("id_vendre_non_certifie").checked) return null;
+    if ($("id_vendre_non_certifie").checked || $("id_produit").value !== "cacao") return null;
     var choix = $("id_programme").value;
     var valides = infos.certifications.filter(function (c) { return c.certifie && (!choix || String(c.programme) === choix); });
     return valides.length ? valides[0] : null;
@@ -147,7 +147,7 @@
       .catch(function () { calculer(); });
   }
 
-  ["id_poids_brut", "id_tare", "id_refaction", "id_prix_kg", "id_date", "id_magasin", "id_programme", "id_vendre_non_certifie"].forEach(function (id) {
+  ["id_produit", "id_poids_brut", "id_tare", "id_refaction", "id_prix_kg", "id_date", "id_magasin", "id_programme", "id_vendre_non_certifie"].forEach(function (id) {
     $(id).addEventListener("input", calculer);
     $(id).addEventListener("change", calculer);
   });

@@ -11,7 +11,13 @@ PRODUITS = {
     "hevea": {"nom": "hévéa", "titre": "Hévéa", "livre": "Caoutchouc naturel (fond de tasse)", "prix": "300"},
     "palmier": {"nom": "palmier à huile", "titre": "Régimes de palme", "livre": "Régimes de palme", "prix": "60"},
 }
-PRODUIT_CHOICES = [("cacao", "Cacao"), ("cafe", "Café"), ("hevea", "Hévéa (caoutchouc)"), ("palmier", "Palmier à huile (régimes)")]
+# Ce que la structure achète. La filière café-cacao gère les deux produits dans la même installation.
+PRODUIT_CHOICES = [("cacao", "Café-cacao"), ("hevea", "Hévéa (caoutchouc)"), ("palmier", "Palmier à huile (régimes)")]
+
+
+# Produit de chaque pesée, de chaque lot et de chaque prix du jour.
+PRODUIT_ACHAT_CHOICES = [("cacao", "Cacao"), ("cafe", "Café"), ("hevea", "Hévéa"), ("palmier", "Régimes de palme")]
+PRODUITS_PAR_FILIERE = {"cacao": ["cacao", "cafe"], "hevea": ["hevea"], "palmier": ["palmier"]}
 
 
 def nouvelle_cle():
@@ -24,7 +30,7 @@ class Cooperative(models.Model):
     nom = models.CharField(max_length=200, default="Ma coopérative")
     produit = models.CharField(
         "produit acheté", max_length=10, choices=PRODUIT_CHOICES, default="cacao",
-        help_text="Cacao, café, hévéa ou palmier à huile : les écrans s'adaptent au produit.",
+        help_text="Café-cacao, hévéa ou palmier à huile : les écrans s'adaptent au produit.",
     )
     sigle = models.CharField(max_length=30, blank=True)
     numero_agrement = models.CharField("n° d'agrément", max_length=60, blank=True)
@@ -63,11 +69,24 @@ class Cooperative(models.Model):
     @property
     def est_cacao(self):
         """Filière café-cacao : certification, humidité et grade s'appliquent."""
-        return self.produit in ("cacao", "cafe")
+        return self.produit == "cacao"
+
+    @property
+    def codes_produits(self):
+        """Produits achetés par la structure (café et cacao vont ensemble)."""
+        return PRODUITS_PAR_FILIERE.get(self.produit, ["cacao"])
+
+    @property
+    def choix_produits(self):
+        noms = dict(PRODUIT_ACHAT_CHOICES)
+        return [(c, noms[c]) for c in self.codes_produits]
 
     @property
     def infos_produit(self):
-        return PRODUITS.get(self.produit, PRODUITS["cacao"])
+        infos = dict(PRODUITS.get(self.produit, PRODUITS["cacao"]))
+        if self.est_cacao:
+            infos.update(nom="café-cacao", titre="Café-cacao")
+        return infos
 
 
 class PrixDuJour(models.Model):
@@ -80,22 +99,24 @@ class PrixDuJour(models.Model):
         help_text="Laisser vide pour appliquer ce prix dans tous les magasins.",
     )
     prix_kg = models.DecimalField("prix (FCFA/kg)", max_digits=10, decimal_places=2)
+    produit = models.CharField(max_length=10, choices=PRODUIT_ACHAT_CHOICES, default="cacao")
 
     class Meta:
         verbose_name = "prix du jour"
         verbose_name_plural = "prix du jour"
         ordering = ["-date"]
         constraints = [
-            models.UniqueConstraint(fields=["campagne", "date", "magasin"], name="prix_du_jour_unique"),
+            models.UniqueConstraint(fields=["campagne", "date", "magasin", "produit"], name="prix_du_jour_unique"),
         ]
 
     def __str__(self):
-        return f"{self.date:%d/%m/%Y} : {self.prix_kg} FCFA/kg"
+        return f"{self.date:%d/%m/%Y} – {self.get_produit_display()} : {self.prix_kg} FCFA/kg"
 
     def clean(self):
-        doublon = PrixDuJour.objects.filter(campagne_id=self.campagne_id, date=self.date, magasin=self.magasin)
+        doublon = PrixDuJour.objects.filter(campagne_id=self.campagne_id, date=self.date, magasin=self.magasin,
+                                            produit=self.produit)
         if self.campagne_id and doublon.exclude(pk=self.pk).exists():
-            raise ValidationError("Un prix existe déjà pour cette date et ce magasin.")
+            raise ValidationError("Un prix existe déjà pour cette date, ce magasin et ce produit.")
 
 
 class CampagneQuerySet(models.QuerySet):
@@ -111,6 +132,10 @@ class Campagne(models.Model):
     date_fin = models.DateField("date de fin")
     prix_kg = models.DecimalField(
         "prix bord champ (FCFA/kg)", max_digits=10, decimal_places=2, default=Decimal("0")
+    )
+    prix_cafe_kg = models.DecimalField(
+        "prix bord champ du café (FCFA/kg)", max_digits=10, decimal_places=2, default=Decimal("0"),
+        help_text="Pour la filière café-cacao : prix fixé du café. Le prix ci-dessus est celui du cacao.",
     )
     active = models.BooleanField(
         default=False, help_text="Campagne utilisée par défaut pour les nouveaux achats."
@@ -133,11 +158,15 @@ class Campagne(models.Model):
         if self.active:
             Campagne.objects.exclude(pk=self.pk).filter(active=True).update(active=False)
 
-    def prix_applicable(self, jour, magasin=None):
+    def prix_fixe(self, produit="cacao"):
+        """Prix fixé de la campagne pour ce produit (le café a son propre prix)."""
+        return self.prix_cafe_kg if produit == "cafe" else self.prix_kg
+
+    def prix_applicable(self, jour, magasin=None, produit="cacao"):
         """Prix du jour (du magasin, sinon général) s'il existe, sinon prix fixé de la campagne."""
-        prix = self.prix_du_jour.filter(date=jour)
+        prix = self.prix_du_jour.filter(date=jour, produit=produit)
         trouve = (magasin and prix.filter(magasin=magasin).first()) or prix.filter(magasin__isnull=True).first()
-        return trouve.prix_kg if trouve else self.prix_kg
+        return trouve.prix_kg if trouve else self.prix_fixe(produit)
 
 
 class Section(models.Model):

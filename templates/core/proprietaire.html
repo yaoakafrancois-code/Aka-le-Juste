@@ -17,6 +17,15 @@
   <div class="indicateur orange"><div class="libelle">Stock en magasin</div><div class="valeur">{{ r.stock_total|floatformat:"0g" }} kg</div><div class="detail">Déjà livré : {{ r.livre|floatformat:"0g" }} kg</div></div>
 </div>
 
+{% if r.par_produit %}
+<div class="carte">
+  <h2>Par produit (campagne)</h2>
+  <table><thead><tr><th>Produit</th><th class="n">Acheté (kg)</th><th class="n">Montant (F)</th><th class="n">En stock (kg)</th></tr></thead><tbody>
+  {% for p in r.par_produit %}<tr><td>{{ p.nom }}</td><td class="n">{{ p.poids|floatformat:"0g" }}</td><td class="n">{{ p.montant|floatformat:"0g" }}</td><td class="n">{{ p.stock_kg|floatformat:"0g" }}</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endif %}
+
 <div class="carte">
   <h2>Stock par magasin</h2>
   <table><thead><tr><th>Magasin</th><th class="n">Poids (kg)</th></tr></thead><tbody>
@@ -28,9 +37,9 @@
 <div class="carte">
   <h2>Dernières pesées</h2>
   <div class="tableau-conteneur"><table>
-    <thead><tr><th>Date</th><th>Producteur</th><th>Magasin</th><th class="n">Poids net</th><th class="n">Montant</th></tr></thead>
+    <thead><tr><th>Date</th><th>Producteur</th><th>Produit</th><th class="n">Poids net</th><th class="n">Montant</th></tr></thead>
     <tbody>
-    {% for a in r.dernieres %}<tr><td>{{ a.date }}</td><td>{{ a.producteur }}</td><td>{{ a.magasin }}</td><td class="n">{{ a.poids|floatformat:"0g" }} kg</td><td class="n">{{ a.montant|floatformat:"0g" }} F</td></tr>
+    {% for a in r.dernieres %}<tr><td>{{ a.date }}</td><td>{{ a.producteur }}</td><td>{{ a.produit|default:a.magasin }}</td><td class="n">{{ a.poids|floatformat:"0g" }} kg</td><td class="n">{{ a.montant|floatformat:"0g" }} F</td></tr>
     {% empty %}<tr><td colspan="5" class="vide">Aucune pesée enregistrée.</td></tr>{% endfor %}
     </tbody>
   </table></div>

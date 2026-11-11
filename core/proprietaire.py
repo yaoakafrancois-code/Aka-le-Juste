@@ -58,6 +58,12 @@ def construire_resume():
         "jour": _periode(achats.filter(date=aujourd_hui)),
         "semaine": _periode(achats.filter(date__gt=aujourd_hui - timedelta(days=7))),
         "total": _periode(achats),
+        "par_produit": [
+            {"nom": nom, "poids": _somme(achats.filter(produit=code), "poids_net"),
+             "montant": _somme(achats.filter(produit=code)),
+             "stock_kg": sum(p["poids"] for l in stock for p in l["par_produit"] if p["code"] == code)}
+            for code, nom in coop.choix_produits
+        ] if len(coop.codes_produits) > 1 else [],
         "primes": primes,
         "paye": paye,
         "avances": avances,
@@ -67,6 +73,7 @@ def construire_resume():
         "livre": _somme(livraisons, "poids_livre"),
         "dernieres": [
             {"date": a.date.strftime("%d/%m"), "producteur": a.producteur.nom_complet, "magasin": a.magasin.nom,
+             "produit": a.get_produit_display(),
              "poids": a.poids_net, "montant": a.montant}
             for a in achats.select_related("producteur", "magasin")[:10]
         ],
@@ -75,7 +82,7 @@ def construire_resume():
     return json.loads(json.dumps(resume, cls=DjangoJSONEncoder))
 
 
-NOMBRES = {"poids", "montant", "pesees", "primes", "paye", "avances", "reste_a_payer", "stock_total", "livre"}
+NOMBRES = {"stock_kg", "poids", "montant", "pesees", "primes", "paye", "avances", "reste_a_payer", "stock_total", "livre"}
 
 
 def _nombres(valeur, cle=None):

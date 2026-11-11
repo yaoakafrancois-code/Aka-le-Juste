@@ -12,9 +12,9 @@
   <div class="indicateur rouge"><div class="libelle">Pas encore mis en lot</div><div class="valeur">{{ totaux.hors_lot|floatformat:"0g" }} kg</div></div>
 </div>
 <div class="carte tableau-conteneur"><table>
-  <thead><tr><th>Magasin</th><th>Localité</th><th class="n">Certifié (kg)</th><th class="n">Non certifié (kg)</th><th class="n">Total (kg)</th><th class="n">Hors lot</th><th class="n">Capacité</th><th class="n">Remplissage</th></tr></thead>
-  <tbody>{% for l in lignes %}<tr><td>{{ l.magasin }}</td><td>{{ l.magasin.localite }}</td><td class="n">{{ l.certifie|floatformat:"0g" }}</td><td class="n">{{ l.non_certifie|floatformat:"0g" }}</td><td class="n"><strong>{{ l.poids|floatformat:"0g" }}</strong></td><td class="n">{{ l.hors_lot|floatformat:"0g" }}</td><td class="n">{{ l.magasin.capacite_kg|default:"–" }}</td><td class="n">{% if l.taux_remplissage is not None %}{{ l.taux_remplissage|floatformat:0 }} %{% else %}–{% endif %}</td></tr>
-  {% empty %}<tr><td colspan="8" class="vide">Aucun magasin. Ajoutez-en dans les paramètres.</td></tr>{% endfor %}</tbody>
+  <thead><tr><th>Magasin</th><th>Localité</th>{% if est_cacao %}<th class="n">Cacao (kg)</th><th class="n">Café (kg)</th>{% endif %}<th class="n">Certifié (kg)</th><th class="n">Non certifié (kg)</th><th class="n">Total (kg)</th><th class="n">Hors lot</th><th class="n">Capacité</th><th class="n">Remplissage</th></tr></thead>
+  <tbody>{% for l in lignes %}<tr><td>{{ l.magasin }}</td><td>{{ l.magasin.localite }}</td>{% if est_cacao %}{% for p in l.par_produit %}<td class="n">{{ p.poids|floatformat:"0g" }}</td>{% endfor %}{% endif %}<td class="n">{{ l.certifie|floatformat:"0g" }}</td><td class="n">{{ l.non_certifie|floatformat:"0g" }}</td><td class="n"><strong>{{ l.poids|floatformat:"0g" }}</strong></td><td class="n">{{ l.hors_lot|floatformat:"0g" }}</td><td class="n">{{ l.magasin.capacite_kg|default:"–" }}</td><td class="n">{% if l.taux_remplissage is not None %}{{ l.taux_remplissage|floatformat:0 }} %{% else %}–{% endif %}</td></tr>
+  {% empty %}<tr><td colspan="10" class="vide">Aucun magasin. Ajoutez-en dans les paramètres.</td></tr>{% endfor %}</tbody>
 </table></div>
 <div class="carte"><div class="titre-page"><h2>Lots prêts à livrer</h2>{% if lots_prets %}<a class="btn vert" href="{% url 'stocks:livraison_creer' %}">Enregistrer une expédition</a>{% endif %}</div>
 <div class="tableau-conteneur"><table>
