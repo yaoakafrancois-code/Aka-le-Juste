@@ -1,0 +1,36 @@
+# Mise en ligne d'Akagri sur Render (serveur de démonstration et vue du propriétaire).
+# Dans Render : New > Blueprint, puis choisir ce dépôt et la branche akagri-multi-produits.
+services:
+  - type: web
+    name: akagri
+    runtime: docker
+    plan: free
+    branch: akagri-multi-produits
+    healthCheckPath: /connexion/
+    envVars:
+      - key: PORT
+        value: "8000"
+      - key: CACAO_SECRET_KEY
+        generateValue: true
+      - key: CACAO_ALLOWED_HOSTS
+        value: ".onrender.com"
+      - key: CACAO_CSRF_ORIGINS
+        value: "https://*.onrender.com"
+      - key: CACAO_HTTPS
+        value: "1"
+      - key: CACAO_DB_ENGINE
+        value: postgresql
+      - key: CACAO_DB_NAME
+        fromDatabase: {name: akagri-db, property: database}
+      - key: CACAO_DB_USER
+        fromDatabase: {name: akagri-db, property: user}
+      - key: CACAO_DB_PASSWORD
+        fromDatabase: {name: akagri-db, property: password}
+      - key: CACAO_DB_HOST
+        fromDatabase: {name: akagri-db, property: host}
+      - key: CACAO_DB_PORT
+        fromDatabase: {name: akagri-db, property: port}
+
+databases:
+  - name: akagri-db
+    plan: free
