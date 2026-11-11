@@ -35,7 +35,7 @@
   <h3>Produit</h3>
   <table>
     <thead><tr><th>Produit</th><th>Type</th><th>Certificat</th><th>Grade</th><th class="n">Sacs</th><th class="n">Poids brut (kg)</th><th class="n">Poids net (kg)</th></tr></thead>
-    <tbody><tr><td>Fèves de cacao</td><td>{{ livraison.type_produit }}</td><td>{{ programme.numero_certificat|default:"–" }}</td><td>{{ livraison.grade|default:"–" }}</td>
+    <tbody><tr><td>{{ produit.livre }}</td><td>{{ livraison.type_produit }}</td><td>{{ programme.numero_certificat|default:"–" }}</td><td>{{ livraison.grade|default:"–" }}</td>
       <td class="n">{{ livraison.nombre_sacs|default:livraison.sacs_lots }}</td><td class="n">{{ livraison.poids_brut|floatformat:"2g"|default:"–" }}</td><td class="n"><strong>{{ livraison.poids_livre|floatformat:"2g" }}</strong></td></tr></tbody>
   </table>
   <table style="margin-top:.6rem">

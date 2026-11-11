@@ -39,10 +39,10 @@ jobs:
       - run: python outils/construire_portable.py --installateur
       - uses: actions/upload-artifact@v4
         with:
-          name: CacaoCoop-windows
+          name: Akagri-windows
           path: |
-            dist/CacaoCoop-portable-windows.zip
-            dist/Installer-CacaoCoop.exe
+            dist/Akagri-portable-windows.zip
+            dist/Installer-Akagri.exe
           retention-days: 30
 
   android:
@@ -73,11 +73,11 @@ jobs:
         run: |
           gradle -p android assembleRelease --no-daemon
           mkdir -p dist
-          cp android/app/build/outputs/apk/release/app-release.apk dist/CacaoCoop-android.apk
+          cp android/app/build/outputs/apk/release/app-release.apk dist/Akagri-android.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: CacaoCoop-android
-          path: dist/CacaoCoop-android.apk
+          name: Akagri-android
+          path: dist/Akagri-android.apk
           retention-days: 30
 
   verifier-windows:
@@ -88,25 +88,25 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: CacaoCoop-windows
+          name: Akagri-windows
       - name: Version portable
         shell: pwsh
         run: |
-          Expand-Archive CacaoCoop-portable-windows.zip -DestinationPath portable
-          cd portable\CacaoCoop
+          Expand-Archive Akagri-portable-windows.zip -DestinationPath portable
+          cd portable\Akagri
           .\python\python.exe manage.py migrate -v 0
           .\python\python.exe manage.py check
       - name: Installation silencieuse, démarrage, assistant, désinstallation
         shell: pwsh
         run: |
-          Start-Process -Wait .\Installer-CacaoCoop.exe -ArgumentList "/S"
-          $dossier = "$env:LOCALAPPDATA\CacaoCoop"
+          Start-Process -Wait .\Installer-Akagri.exe -ArgumentList "/S"
+          $dossier = "$env:LOCALAPPDATA\Akagri"
           if (-not (Test-Path "$dossier\python\python.exe")) { throw "Installation incomplète" }
-          if (-not (Test-Path "$env:USERPROFILE\Desktop\CacaoCoop.lnk")) { throw "Raccourci du bureau absent" }
+          if (-not (Test-Path "$env:USERPROFILE\Desktop\Akagri.lnk")) { throw "Raccourci du bureau absent" }
           $serveur = Start-Process -PassThru -WorkingDirectory $dossier "$dossier\python\python.exe" -ArgumentList "lancer.py","--sans-navigateur"
           Start-Sleep -Seconds 12
           $r = Invoke-WebRequest http://127.0.0.1:8000/ -UseBasicParsing -TimeoutSec 60
-          if ($r.Content -notmatch "Bienvenue dans CacaoCoop") { throw "Assistant d'installation absent" }
+          if ($r.Content -notmatch "Bienvenue dans Akagri") { throw "Assistant d'installation absent" }
           $c = Invoke-WebRequest http://127.0.0.1:8000/static/css/app.css -UseBasicParsing -TimeoutSec 60
           if ($c.StatusCode -ne 200) { throw "Fichiers statiques inaccessibles" }
           Stop-Process -Id $serveur.Id -Force
@@ -136,10 +136,10 @@ jobs:
           tag_name: ${{ steps.version.outputs.tag }}
           target_commitish: ${{ github.sha }}
           make_latest: true
-          name: CacaoCoop ${{ steps.version.outputs.tag }}
+          name: Akagri ${{ steps.version.outputs.tag }}
           body_path: outils/notes_version.md
           files: |
-            dist/Installer-CacaoCoop.exe
-            dist/CacaoCoop-portable-windows.zip
-            dist/CacaoCoop-android.apk
+            dist/Installer-Akagri.exe
+            dist/Akagri-portable-windows.zip
+            dist/Akagri-android.apk
             GUIDE_INSTALLATION.md

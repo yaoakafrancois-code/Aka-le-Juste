@@ -1,4 +1,4 @@
-"""Lance CacaoCoop en mode bureau (un ordinateur, sans internet).
+"""Lance Akagri en mode bureau (un ordinateur, sans internet).
 
     python lancer.py              # http://127.0.0.1:8000, ouvre le navigateur
     python lancer.py --reseau     # accessible depuis les autres postes du réseau local
@@ -34,16 +34,16 @@ def port_occupe(port):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="CacaoCoop – mode bureau")
+    parser = argparse.ArgumentParser(description="Akagri – mode bureau")
     parser.add_argument("--port", type=int, default=8000)
     parser.add_argument("--reseau", action="store_true", help="Ouvrir l'accès aux autres postes du réseau local.")
     parser.add_argument("--sans-navigateur", action="store_true")
     args = parser.parse_args()
 
     if port_occupe(args.port):
-        # CacaoCoop (ou un autre programme) utilise déjà ce port : on ouvre simplement le navigateur.
-        print(f"CacaoCoop semble déjà ouvert sur ce port : ouverture de http://127.0.0.1:{args.port}/")
-        print("Si la page ne s'affiche pas, fermez l'autre fenêtre CacaoCoop ou utilisez --port 8001.")
+        # Akagri (ou un autre programme) utilise déjà ce port : on ouvre simplement le navigateur.
+        print(f"Akagri semble déjà ouvert sur ce port : ouverture de http://127.0.0.1:{args.port}/")
+        print("Si la page ne s'affiche pas, fermez l'autre fenêtre Akagri ou utilisez --port 8001.")
         if not args.sans_navigateur:
             webbrowser.open(f"http://127.0.0.1:{args.port}/")
         return
@@ -68,7 +68,7 @@ def main():
     from config.wsgi import application
 
     url = f"http://127.0.0.1:{args.port}/"
-    print(f"\nCacaoCoop est démarré : {url}")
+    print(f"\nAkagri est démarré : {url}")
     if args.reseau:
         print(f"Depuis les autres postes du réseau : http://{adresse_locale()}:{args.port}/")
     if premier_lancement:

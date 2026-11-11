@@ -21,24 +21,24 @@ Les quotas affichés hors connexion sont une estimation ; le reçu définitif es
     <div id="t-resultats" class="resultats-recherche"></div>
   </div>
   <div class="fiche-producteur" id="t-fiche" hidden></div>
-  <div class="calcul" id="t-quota" hidden></div>
+  <div class="calcul" id="t-quota" hidden{% if not est_cacao %} style="display:none"{% endif %}></div>
   <div class="formulaire" style="margin-top:1rem">
     <div class="champ"><label for="t-magasin">Magasin *</label><select id="t-magasin" required></select></div>
     <div class="champ"><label for="t-parcelle">Parcelle</label><select id="t-parcelle"><option value="">---------</option></select></div>
     <div class="champ"><label for="t-sacs">Nombre de sacs *</label><input type="number" id="t-sacs" min="1" value="1" inputmode="numeric" required></div>
     <div class="champ"><label for="t-brut">Poids brut (kg) *</label><input type="number" id="t-brut" step="0.01" min="0" inputmode="decimal" required></div>
     <div class="champ"><label for="t-tare">Tare (kg)</label><input type="number" id="t-tare" step="0.01" min="0" value="0" inputmode="decimal"></div>
-    <div class="champ"><label for="t-humidite">Humidité (%)</label><input type="number" id="t-humidite" step="0.1" min="0" inputmode="decimal"></div>
+    <div class="champ"{% if not est_cacao %} hidden{% endif %}><label for="t-humidite">Humidité (%)</label><input type="number" id="t-humidite" step="0.1" min="0" inputmode="decimal"></div>
     <div class="champ"><label for="t-refaction">Réfaction (%)</label><input type="number" id="t-refaction" step="0.1" min="0" max="99" value="0" inputmode="decimal"></div>
-    <div class="champ"><label for="t-qualite">Qualité</label><select id="t-qualite"><option value="grade1">Grade I</option><option value="grade2">Grade II</option><option value="hors_standard">Hors standard</option></select></div>
+    <div class="champ"{% if not est_cacao %} hidden{% endif %}><label for="t-qualite">Qualité</label><select id="t-qualite"><option value="grade1">Grade I</option><option value="grade2">Grade II</option><option value="hors_standard">Hors standard</option></select></div>
     <div class="champ large"><label for="t-observations">Observations</label><input type="text" id="t-observations"></div>
   </div>
   <div class="calcul">
     <div><span>Poids net</span><strong id="t-net">–</strong></div>
-    <div><span>dont certifié (estimation)</span><strong id="t-cert">–</strong></div>
+    <div{% if not est_cacao %} hidden{% endif %}><span>dont certifié (estimation)</span><strong id="t-cert">–</strong></div>
     <div><span>Prix</span><strong id="t-prix">–</strong></div>
-    <div><span>Montant cacao</span><strong id="t-montant">–</strong></div>
-    <div><span>Prime</span><strong id="t-prime">–</strong></div>
+    <div><span>Montant {{ produit.nom }}</span><strong id="t-montant">–</strong></div>
+    <div{% if not est_cacao %} hidden{% endif %}><span>Prime</span><strong id="t-prime">–</strong></div>
   </div>
   <p class="erreur" id="t-erreur"></p>
   <div class="pied-formulaire"><button class="btn" type="submit">Enregistrer la pesée</button></div>

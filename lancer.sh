@@ -1,5 +1,5 @@
 #!/bin/sh
-# Lancement de CacaoCoop sous Linux / macOS.
+# Lancement de Akagri sous Linux / macOS.
 cd "$(dirname "$0")" || exit 1
 if [ ! -d .venv ]; then
     echo "Installation initiale, veuillez patienter..."

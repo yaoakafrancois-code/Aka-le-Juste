@@ -25,7 +25,7 @@
     <dt>Poids net</dt><dd><strong>{{ object.poids_net|floatformat:"2g" }} kg</strong></dd>
     <dt>Qualité</dt><dd>{{ object.get_qualite_display }}</dd>
     <dt>Prix</dt><dd>{{ object.prix_kg|floatformat:"0g" }} FCFA/kg ({{ object.get_source_prix_display|lower }})</dd>
-    <dt>Montant cacao</dt><dd><strong>{{ object.montant|floatformat:"0g" }} FCFA</strong></dd>
+    <dt>Montant {{ produit.nom }}</dt><dd><strong>{{ object.montant|floatformat:"0g" }} FCFA</strong></dd>
     <dt>Prime certification</dt><dd>{{ object.montant_prime|floatformat:"0g" }} FCFA</dd>
     <dt>Total producteur</dt><dd><strong>{{ object.montant_total|floatformat:"0g" }} FCFA</strong></dd>
   </dl></div>

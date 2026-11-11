@@ -1,13 +1,31 @@
+import secrets
 from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import models
+
+# Produits gérés : le logiciel adapte ses écrans (certification, humidité, qualité) au produit choisi.
+PRODUITS = {
+    "cacao": {"nom": "cacao", "titre": "Cacao", "livre": "Fèves de cacao", "prix": "2800"},
+    "cafe": {"nom": "café", "titre": "Café", "livre": "Café (cerises ou café vert)", "prix": "1500"},
+    "hevea": {"nom": "hévéa", "titre": "Hévéa", "livre": "Caoutchouc naturel (fond de tasse)", "prix": "300"},
+    "palmier": {"nom": "palmier à huile", "titre": "Régimes de palme", "livre": "Régimes de palme", "prix": "60"},
+}
+PRODUIT_CHOICES = [("cacao", "Cacao"), ("cafe", "Café"), ("hevea", "Hévéa (caoutchouc)"), ("palmier", "Palmier à huile (régimes)")]
+
+
+def nouvelle_cle():
+    return secrets.token_urlsafe(24)
 
 
 class Cooperative(models.Model):
     """Informations de la coopérative (une seule fiche par installation)."""
 
     nom = models.CharField(max_length=200, default="Ma coopérative")
+    produit = models.CharField(
+        "produit acheté", max_length=10, choices=PRODUIT_CHOICES, default="cacao",
+        help_text="Cacao, café, hévéa ou palmier à huile : les écrans s'adaptent au produit.",
+    )
     sigle = models.CharField(max_length=30, blank=True)
     numero_agrement = models.CharField("n° d'agrément", max_length=60, blank=True)
     code_ccc = models.CharField(
@@ -21,6 +39,15 @@ class Cooperative(models.Model):
     adresse = models.CharField(max_length=255, blank=True)
     telephone = models.CharField("téléphone", max_length=40, blank=True)
     email = models.EmailField(blank=True)
+    url_relais = models.URLField(
+        "adresse du serveur Akagri (vue du propriétaire)", blank=True,
+        help_text="Adresse du serveur internet qui reçoit le résumé, ex. https://akagri.exemple.ci. "
+                  "Laisser vide si le logiciel est déjà installé sur un serveur.",
+    )
+    cle_relais = models.CharField(
+        "clé secrète du propriétaire", max_length=64, default=nouvelle_cle, editable=False,
+        help_text="Clé du lien privé donné au propriétaire.",
+    )
 
     class Meta:
         verbose_name = "coopérative"
@@ -32,6 +59,15 @@ class Cooperative(models.Model):
     @classmethod
     def courante(cls):
         return cls.objects.first() or cls(nom="Ma coopérative")
+
+    @property
+    def est_cacao(self):
+        """Filière café-cacao : certification, humidité et grade s'appliquent."""
+        return self.produit in ("cacao", "cafe")
+
+    @property
+    def infos_produit(self):
+        return PRODUITS.get(self.produit, PRODUITS["cacao"])
 
 
 class PrixDuJour(models.Model):
@@ -132,3 +168,25 @@ class Magasin(models.Model):
 
     def __str__(self):
         return f"{self.code} – {self.nom}"
+
+
+class ResumeRecu(models.Model):
+    """Abonné à la vue du propriétaire : ce serveur reçoit le résumé envoyé par son bureau (souvent sans internet).
+
+    L'administrateur du serveur crée la fiche avec la clé de l'abonné ; sans fiche active, l'envoi est refusé.
+    """
+
+    nom = models.CharField("structure abonnée", max_length=200)
+    cle = models.CharField("clé secrète", max_length=64, unique=True,
+                           help_text="Clé affichée dans la page « Propriétaire » du logiciel de l'abonné.")
+    actif = models.BooleanField(default=True, help_text="Décocher pour suspendre l'abonnement.")
+    donnees = models.JSONField(default=dict, blank=True, editable=False)
+    recu_le = models.DateTimeField("dernier envoi", null=True, blank=True, editable=False)
+
+    class Meta:
+        verbose_name = "abonné (vue du propriétaire)"
+        verbose_name_plural = "abonnés (vue du propriétaire)"
+        ordering = ["nom"]
+
+    def __str__(self):
+        return self.nom

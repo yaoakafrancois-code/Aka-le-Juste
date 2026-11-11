@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from achats.models import Achat
-from core.models import Campagne, Magasin, Section
+from core.models import Campagne, Cooperative, Magasin, ResumeRecu, Section
 from paiements.models import Avance, Paiement, Prime, situation_producteur
 from core.models import PrixDuJour
 from producteurs.models import AugmentationQuota, CertificationProducteur, Parcelle, Producteur, Programme
@@ -415,7 +415,7 @@ class InstallationTests(TestCase):
         self.assertEqual(page.status_code, 200)
         self.assertRegex(page.content.decode(), r'type="date"[^>]*value="\d{4}-\d{2}-\d{2}"')  # dates pré-remplies
         r = self.client.post("/installation/", {
-            "nom": "SCOOPS Espoir de Soubré", "code_ccc": "CCC-0042", "identifiant": "chef",
+            "produit": "cacao", "nom": "SCOOPS Espoir de Soubré", "code_ccc": "CCC-0042", "identifiant": "chef",
             "mot_de_passe": "Cacao-2026!", "confirmation": "Cacao-2026!", "campagne": "2026-2027 principale",
             "date_debut": "2026-10-01", "date_fin": "2027-03-31", "prix_kg": "2800",
             "magasin_code": "M01", "magasin_nom": "Magasin central",
@@ -436,3 +436,111 @@ class InstallationTests(TestCase):
         })
         self.assertEqual(r.status_code, 200)
         self.assertFalse(User.objects.exists())
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class MultiProduitsTests(Donnees):
+    """Hévéa et palmier : mêmes pesées, sans les écrans propres au cacao."""
+
+    def setUp(self):
+        self.coop = Cooperative.objects.create(nom="Pont d'achat Aboisso", produit="hevea")
+        self.client.force_login(User.objects.get(username="proprietaire"))
+
+    def test_ecran_de_pesee_hevea(self):
+        page = self.client.get("/achats/nouveau/").content.decode()
+        self.assertIn("véhicule plein au pont-bascule", page)
+        self.assertIn("Montant hévéa", page)
+        self.assertNotIn("Humidité", page)
+        self.assertRegex(page, r'type="hidden"[^>]*name="qualite"')
+        self.assertNotIn("Certification ▾", page)
+
+    def test_pesee_pont_bascule(self):
+        r = self.client.post("/achats/nouveau/", {
+            "date": "2026-10-20", "campagne": self.campagne.pk, "magasin": self.magasin.pk,
+            "producteur": self.producteur.pk, "nombre_sacs": 1, "poids_brut": "5400", "tare": "3900",
+            "refaction": "0", "qualite": "grade1", "prix_kg": "300", "vendre_non_certifie": "False",
+        })
+        achat = Achat.objects.get()
+        self.assertRedirects(r, f"/achats/{achat.pk}/")
+        self.assertEqual(achat.poids_net, Decimal("1500.00"))
+        self.assertEqual(achat.montant, Decimal("450000"))
+        self.assertEqual(achat.poids_certifie, Decimal("0"))
+        recu = self.client.get(f"/achats/{achat.pk}/recu/").content.decode()
+        self.assertIn("HÉVÉA", recu)
+        self.assertNotIn("CACAO", recu.upper().replace("AKAGRI", ""))
+
+    def test_cafe_comme_le_cacao(self):
+        Cooperative.objects.update(produit="cafe")
+        page = self.client.get("/achats/nouveau/").content.decode()
+        self.assertIn("Humidité", page)
+        self.assertIn("Certification ▾", page)
+        self.assertIn("Montant café", page)
+
+    def test_ecran_cacao_inchange(self):
+        Cooperative.objects.update(produit="cacao")
+        page = self.client.get("/achats/nouveau/").content.decode()
+        self.assertIn("Humidité", page)
+        self.assertIn("Certification ▾", page)
+        self.assertIn("Montant cacao", page)
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class ProprietaireTests(Donnees):
+    def setUp(self):
+        self.coop = Cooperative.objects.create(nom="COOP Test", produit="cacao")
+        self.client.force_login(User.objects.get(username="proprietaire"))
+
+    def test_page_locale(self):
+        from django.utils import timezone
+        self.achat(date=timezone.localdate())
+        Paiement.objects.create(campagne=self.campagne, producteur=self.producteur, montant=Decimal("100000"),
+                                date=timezone.localdate())
+        page = self.client.get("/proprietaire/")
+        self.assertEqual(page.status_code, 200)
+        r = page.context["r"]
+        self.assertEqual(r["jour"]["poids"], 100.0)
+        self.assertEqual(r["total"]["montant"], 280000.0)
+        self.assertEqual(r["reste_a_payer"], 180000.0)
+        self.assertEqual(r["stock_total"], 100.0)
+
+    def test_envoi_refuse_sans_abonnement_puis_accepte(self):
+        import json
+        from core.proprietaire import construire_resume
+        self.achat()
+        corps = json.dumps({"cle": self.coop.cle_relais, "donnees": construire_resume()})
+        self.client.logout()
+        r = self.client.post("/relais/recevoir/", corps, content_type="application/json")
+        self.assertEqual(r.status_code, 403)
+        self.assertEqual(self.client.get(f"/p/{self.coop.cle_relais}/").status_code, 404)
+        abonne = ResumeRecu.objects.create(nom="COOP Test", cle=self.coop.cle_relais)
+        r = self.client.post("/relais/recevoir/", corps, content_type="application/json")
+        self.assertEqual(r.status_code, 200)
+        page = self.client.get(f"/p/{self.coop.cle_relais}/")  # sans connexion : lien privé
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, "COOP Test")
+        self.assertEqual(page.context["r"]["total"]["poids"], 100.0)
+        self.assertNotContains(page, "Envoyer au propriétaire")
+        abonne.actif = False
+        abonne.save()
+        self.assertEqual(self.client.get(f"/p/{self.coop.cle_relais}/").status_code, 404)
+        self.assertEqual(self.client.post("/relais/recevoir/", corps, content_type="application/json").status_code, 403)
+
+    def test_envoi_mal_forme(self):
+        self.assertEqual(self.client.post("/relais/recevoir/", "pas du json", content_type="application/json").status_code, 400)
+        self.assertEqual(self.client.get("/relais/recevoir/").status_code, 405)
+
+    def test_installation_hevea(self):
+        from core import installation
+        Cooperative.objects.all().delete()
+        User.objects.all().delete()
+        installation._installe = False
+        self.addCleanup(setattr, installation, "_installe", False)
+        self.client.logout()
+        r = self.client.post("/installation/", {
+            "produit": "hevea", "nom": "Pont Kouamé", "identifiant": "chef",
+            "mot_de_passe": "Hevea-2026!", "confirmation": "Hevea-2026!", "campagne": "Hévéa 2026-2027",
+            "date_debut": "2026-10-01", "date_fin": "2027-09-30", "prix_kg": "300",
+            "magasin_code": "P01", "magasin_nom": "Pont principal",
+        })
+        self.assertRedirects(r, "/")
+        self.assertEqual(Cooperative.objects.get().produit, "hevea")

@@ -2,8 +2,8 @@ from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
 
-admin.site.site_header = "CacaoCoop – Paramètres"
-admin.site.site_title = "CacaoCoop"
+admin.site.site_header = "Akagri – Paramètres"
+admin.site.site_title = "Akagri"
 admin.site.index_title = "Paramètres et administration"
 
 urlpatterns = [

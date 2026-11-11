@@ -98,12 +98,12 @@ def rapports(request):
 
 
 def manifeste(request):
-    """Manifeste d'application web : permet d'installer CacaoCoop sur l'écran d'accueil (Android, tablette)."""
+    """Manifeste d'application web : permet d'installer Akagri sur l'écran d'accueil (Android, tablette)."""
     coop = Cooperative.courante()
     return JsonResponse({
-        "name": f"CacaoCoop – {coop}",
-        "short_name": "CacaoCoop",
-        "description": "Gestion des achats et de la collecte de cacao",
+        "name": f"Akagri – {coop}",
+        "short_name": "Akagri",
+        "description": "Gestion des achats, des pesées et des stocks (cacao, café, hévéa, palmier à huile)",
         "lang": "fr",
         "start_url": "/",
         "scope": "/",

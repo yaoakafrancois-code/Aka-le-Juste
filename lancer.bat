@@ -1,5 +1,5 @@
 @echo off
-REM Lancement de CacaoCoop sous Windows (double-cliquer sur ce fichier).
+REM Lancement de Akagri sous Windows (double-cliquer sur ce fichier).
 cd /d "%~dp0"
 if not exist .venv (
     echo Installation initiale, veuillez patienter...

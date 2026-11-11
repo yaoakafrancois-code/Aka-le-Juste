@@ -1,5 +1,5 @@
 """
-Configuration de CacaoCoop.
+Configuration de Akagri.
 
 Deux modes de fonctionnement :
 - Bureau (par défaut) : un seul ordinateur, base SQLite locale, aucun accès internet requis.

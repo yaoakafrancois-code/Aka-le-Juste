@@ -2,8 +2,8 @@
 {% block titre %}Connexion{% endblock %}
 {% block contenu %}
 <div class="connexion carte">
-  <h1>CacaoCoop</h1>
-  <p style="color:var(--doux)">Gestion des achats et de la collecte de cacao<br><strong>{{ cooperative.nom }}</strong></p>
+  <h1>Akagri</h1>
+  <p style="color:var(--doux)">Gestion des achats, des pesées et des stocks ({{ produit.nom }})<br><strong>{{ cooperative.nom }}</strong></p>
   {% if form.errors %}<ul class="messages"><li class="error">Identifiant ou mot de passe incorrect.</li></ul>{% endif %}
   <form method="post">{% csrf_token %}
     <p><label for="id_username">Identifiant</label><br>{{ form.username }}</p>

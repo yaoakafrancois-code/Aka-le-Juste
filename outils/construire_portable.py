@@ -1,7 +1,7 @@
-"""Fabrique la version portable de CacaoCoop pour Windows (clé USB, disque dur, CD).
+"""Fabrique la version portable de Akagri pour Windows (clé USB, disque dur, CD).
 
-    python outils/construire_portable.py                   # produit dist/CacaoCoop-portable-windows.zip
-    python outils/construire_portable.py --installateur    # + dist/Installer-CacaoCoop.exe (nécessite NSIS)
+    python outils/construire_portable.py                   # produit dist/Akagri-portable-windows.zip
+    python outils/construire_portable.py --installateur    # + dist/Installer-Akagri.exe (nécessite NSIS)
 
 Le dossier obtenu contient son propre Python (paquet officiel « python » publié sur NuGet) et
 toutes les dépendances : il fonctionne sur n'importe quel Windows 10/11 64 bits, sans installation
@@ -27,14 +27,14 @@ A_RETIRER = ["Lib/test", "Lib/idlelib", "Lib/tkinter", "Lib/turtledemo", "Lib/en
              "DLLs/_tkinter.pyd", "DLLs/tcl86t.dll", "DLLs/tk86t.dll"]
 
 LANCEURS = {
-    "CacaoCoop.bat": r"""@echo off
-title CacaoCoop
+    "Akagri.bat": r"""@echo off
+title Akagri
 cd /d "%~dp0"
 "python\python.exe" lancer.py %*
 if errorlevel 1 pause
 """,
-    "CacaoCoop - reseau (tablettes).bat": r"""@echo off
-title CacaoCoop (reseau local)
+    "Akagri - reseau (tablettes).bat": r"""@echo off
+title Akagri (reseau local)
 cd /d "%~dp0"
 echo Les tablettes et telephones connectes au meme Wi-Fi pourront ouvrir l'adresse affichee ci-dessous.
 "python\python.exe" lancer.py --reseau
@@ -46,26 +46,26 @@ cd /d "%~dp0"
 pause
 """,
     "Installer sur cet ordinateur.bat": r"""@echo off
-REM Copie CacaoCoop dans le dossier de l'utilisateur et cree un raccourci sur le bureau.
-set CIBLE=%LOCALAPPDATA%\CacaoCoop
-echo Installation de CacaoCoop dans %CIBLE% ...
+REM Copie Akagri dans le dossier de l'utilisateur et cree un raccourci sur le bureau.
+set CIBLE=%LOCALAPPDATA%\Akagri
+echo Installation de Akagri dans %CIBLE% ...
 robocopy "%~dp0." "%CIBLE%" /E /XD data sauvegardes /NFL /NDL /NJH /NJS >nul
 if not exist "%CIBLE%\data" if exist "%~dp0data" robocopy "%~dp0data" "%CIBLE%\data" /E /NFL /NDL /NJH /NJS >nul
-powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\CacaoCoop.lnk');$s.TargetPath='%CIBLE%\CacaoCoop.bat';$s.WorkingDirectory='%CIBLE%';$s.IconLocation='%CIBLE%\python\python.exe';$s.Save()"
-echo Termine. Un raccourci CacaoCoop a ete cree sur le bureau.
+powershell -NoProfile -Command "$s=(New-Object -ComObject WScript.Shell).CreateShortcut([Environment]::GetFolderPath('Desktop')+'\Akagri.lnk');$s.TargetPath='%CIBLE%\Akagri.bat';$s.WorkingDirectory='%CIBLE%';$s.IconLocation='%CIBLE%\python\python.exe';$s.Save()"
+echo Termine. Un raccourci Akagri a ete cree sur le bureau.
 pause
 """,
 }
 
-LISEZMOI = """CacaoCoop - version portable pour Windows
+LISEZMOI = """Akagri - version portable pour Windows
 ==========================================
 
 Aucune installation n'est nécessaire. Ce dossier peut être copié sur une clé USB, un disque dur
 externe ou un CD (pour un CD, copiez d'abord le dossier sur l'ordinateur : il faut pouvoir écrire
 les données).
 
-  CacaoCoop.bat                         Démarre le logiciel sur cet ordinateur.
-  CacaoCoop - reseau (tablettes).bat    Démarre le logiciel et l'ouvre aux tablettes / téléphones
+  Akagri.bat                         Démarre le logiciel sur cet ordinateur.
+  Akagri - reseau (tablettes).bat    Démarre le logiciel et l'ouvre aux tablettes / téléphones
                                         Android connectés au même Wi-Fi.
   Installer sur cet ordinateur.bat      Copie le logiciel sur l'ordinateur et crée un raccourci
                                         sur le bureau.
@@ -78,7 +78,7 @@ Les données sont enregistrées dans le dossier « data ». Si vous lancez le lo
 USB, les données restent sur la clé : sauvegardez-les régulièrement. Un seul ordinateur à la fois
 doit utiliser une même base de données.
 
-Sur tablette ou téléphone Android : lancez « CacaoCoop - reseau (tablettes).bat » sur l'ordinateur,
+Sur tablette ou téléphone Android : lancez « Akagri - reseau (tablettes).bat » sur l'ordinateur,
 ouvrez Chrome sur la tablette à l'adresse affichée (ex. http://192.168.1.10:8000), puis menu
 ⋮ > « Ajouter à l'écran d'accueil ». Si Windows le demande, autorisez l'accès au réseau privé.
 """
@@ -95,7 +95,7 @@ def telecharger(url, destination):
 
 
 def construire(version, sortie, paquet_python=None):
-    dossier = sortie / "CacaoCoop"
+    dossier = sortie / "Akagri"
     if dossier.exists():
         shutil.rmtree(dossier)
     (dossier / "python").mkdir(parents=True)
@@ -141,7 +141,7 @@ def construire(version, sortie, paquet_python=None):
     (dossier / "GUIDE_INSTALLATION.txt").write_text(guide.replace("\n", "\r\n"), encoding="utf-8-sig")
     (dossier / "VERSION.txt").write_text(VERSION + "\r\n", encoding="ascii")
 
-    archive = sortie / "CacaoCoop-portable-windows.zip"
+    archive = sortie / "Akagri-portable-windows.zip"
     print(f"Création de {archive}…")
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as z:
         for fichier in sorted(dossier.rglob("*")):
@@ -157,9 +157,9 @@ def construire_installateur(sortie):
     makensis = shutil.which("makensis")
     if not makensis:
         sys.exit("NSIS introuvable : installez-le (apt install nsis, choco install nsis…) puis relancez.")
-    exe = sortie / "Installer-CacaoCoop.exe"
+    exe = sortie / "Installer-Akagri.exe"
     subprocess.run([
-        makensis, "-V2", f"-DVERSION={VERSION}", f"-DSOURCE={sortie / 'CacaoCoop'}", f"-DSORTIE={exe}",
+        makensis, "-V2", f"-DVERSION={VERSION}", f"-DSOURCE={sortie / 'Akagri'}", f"-DSORTIE={exe}",
         str(RACINE / "outils" / "installateur.nsi"),
     ], check=True)
     print(f"Terminé : {exe} ({exe.stat().st_size / 1024 / 1024:.0f} Mo)")

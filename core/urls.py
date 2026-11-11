@@ -1,6 +1,6 @@
 from django.urls import path
 
-from . import installation, views
+from . import installation, proprietaire, views
 
 app_name = "core"
 
@@ -10,5 +10,9 @@ urlpatterns = [
     path("manifest.webmanifest", views.manifeste, name="manifeste"),
     path("sw.js", views.service_worker, name="service_worker"),
     path("hors-ligne/", views.hors_ligne, name="hors_ligne"),
+    path("proprietaire/", proprietaire.proprietaire, name="proprietaire"),
+    path("proprietaire/envoyer/", proprietaire.envoyer, name="envoyer_resume"),
+    path("relais/recevoir/", proprietaire.recevoir, name="recevoir_resume"),
+    path("p/<str:cle>/", proprietaire.vue_privee, name="vue_privee"),
     path("installation/", installation.assistant, name="installation"),
 ]

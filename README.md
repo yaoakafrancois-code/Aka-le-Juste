@@ -1,4 +1,4 @@
-# CacaoCoop – Gestion des achats et de la collecte de cacao
+# Akagri – Gestion des achats et de la collecte de cacao
 
 Logiciel de gestion pour les coopératives cacaoyères : producteurs et parcelles, pesées et achats bord champ,
 paiements et avances, stocks, lots et livraisons aux exportateurs, avec traçabilité jusqu'à la parcelle (EUDR).
@@ -13,15 +13,28 @@ Il fonctionne de deux façons, avec le même code :
 - **Tablette et smartphone Android** : l'interface s'adapte aux petits écrans et s'installe sur l'écran
   d'accueil. La tablette se connecte à l'ordinateur de la coopérative par le Wi-Fi, ou au serveur web.
 
-## Installer CacaoCoop
+## Nouveautés : multi-produits et vue du propriétaire
+
+- **Trois produits** : à la première installation, on choisit **cacao**, **café**, **hévéa** ou **palmier à huile**
+  (modifiable ensuite dans Paramètres > Coopérative). Pour l'hévéa et le palmier, la pesée se fait au
+  pont-bascule (véhicule plein, véhicule vide) et les écrans propres au cacao (certification, humidité, grade)
+  sont masqués.
+- **Vue du propriétaire** (menu « Propriétaire ») : achats du jour, des 7 derniers jours et de la campagne,
+  argent payé, reste à payer, stock par magasin, dernières pesées. Lisible sur téléphone.
+- **Bureau sans internet permanent** : le magasinier clique sur « Envoyer au propriétaire » quand la connexion
+  est là. Le résumé part vers un serveur Akagri (adresse à saisir dans Paramètres > Coopérative) et le
+  propriétaire l'ouvre avec son lien privé. Sur le serveur, le fournisseur enregistre chaque client dans
+  Paramètres > Abonnés (clé du client) ; décocher « actif » suspend l'abonnement.
+
+## Installer Akagri
 
 **Suivez le [guide d'installation](GUIDE_INSTALLATION.md).** En résumé :
 
-1. Sur la page **Releases** du dépôt, téléchargez `Installer-CacaoCoop.exe` (Windows),
-   `CacaoCoop-android.apk` (tablettes et smartphones) ou `CacaoCoop-portable-windows.zip` (clé USB).
-2. Sur l'ordinateur principal, double-cliquez sur `Installer-CacaoCoop.exe`. Au premier démarrage, un assistant
+1. Sur la page **Releases** du dépôt, téléchargez `Installer-Akagri.exe` (Windows),
+   `Akagri-android.apk` (tablettes et smartphones) ou `Akagri-portable-windows.zip` (clé USB).
+2. Sur l'ordinateur principal, double-cliquez sur `Installer-Akagri.exe`. Au premier démarrage, un assistant
    vous demande la coopérative, le compte administrateur, la campagne et le premier magasin.
-3. Sur les tablettes, installez l'APK et tapez l'adresse affichée par « CacaoCoop - réseau (tablettes) ».
+3. Sur les tablettes, installez l'APK et tapez l'adresse affichée par « Akagri - réseau (tablettes) ».
 
 ## Fonctionnalités
 
@@ -71,20 +84,20 @@ Certification → Augmentations de quota.
 
 ## Version portable (clé USB, disque dur)
 
-1. Récupérez `CacaoCoop-portable-windows.zip`, soit dans l'onglet **Actions** du dépôt GitHub (artefact
-   « CacaoCoop-portable-windows » produit à chaque modification), soit en le fabriquant vous-même avec
+1. Récupérez `Akagri-portable-windows.zip`, soit dans l'onglet **Actions** du dépôt GitHub (artefact
+   « Akagri-portable-windows » produit à chaque modification), soit en le fabriquant vous-même avec
    `python outils/construire_portable.py`.
-2. Décompressez-le sur la clé USB ou le disque : vous obtenez un dossier `CacaoCoop`.
-3. Double-cliquez sur `CacaoCoop.bat`. Pour l'installer sur un ordinateur, utilisez
+2. Décompressez-le sur la clé USB ou le disque : vous obtenez un dossier `Akagri`.
+3. Double-cliquez sur `Akagri.bat`. Pour l'installer sur un ordinateur, utilisez
    `Installer sur cet ordinateur.bat` : il copie le dossier et crée un raccourci sur le bureau.
 
 Le fichier `LISEZMOI.txt` du dossier explique chaque lanceur.
 
 ## Tablettes et smartphones Android
 
-1. Sur l'ordinateur de la coopérative, lancez `CacaoCoop - reseau (tablettes).bat` (ou `lancer.py --reseau`).
+1. Sur l'ordinateur de la coopérative, lancez `Akagri - reseau (tablettes).bat` (ou `lancer.py --reseau`).
    L'adresse à utiliser s'affiche, par exemple `http://192.168.1.10:8000`.
-2. Sur la tablette, connectée au **même Wi-Fi**, installez l'application `CacaoCoop-android.apk`, ouvrez-la et tapez
+2. Sur la tablette, connectée au **même Wi-Fi**, installez l'application `Akagri-android.apk`, ouvrez-la et tapez
    cette adresse. Sans l'application, ouvrez l'adresse dans Chrome, puis menu ⋮ → **Ajouter à l'écran d'accueil**.
 
 **Pesées sans réseau, au champ : menu Achats → Collecte terrain.**
@@ -170,7 +183,7 @@ Pour utiliser PostgreSQL plutôt que SQLite : `CACAO_DB_ENGINE=postgresql` et `C
 Fabriquer les paquets d'installation (ils sont aussi produits automatiquement par GitHub Actions) :
 
 ```sh
-python outils/construire_portable.py --installateur   # zip portable + Installer-CacaoCoop.exe (NSIS requis)
+python outils/construire_portable.py --installateur   # zip portable + Installer-Akagri.exe (NSIS requis)
 gradle -p android assembleRelease                       # application Android (SDK Android requis)
 git tag v1.0.1 && git push origin v1.0.1                # publie une nouvelle version sur la page Releases
 ```

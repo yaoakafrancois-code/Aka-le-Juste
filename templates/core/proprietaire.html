@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block titre %}Propriétaire{% endblock %}
+{% block contenu %}
+<div class="titre-page">
+  <h1>{{ r.structure }} — {{ r.produit }}</h1>
+  {% if local and relais %}<form class="actions" method="post" action="{% url 'core:envoyer_resume' %}">{% csrf_token %}
+    <button class="btn vert" type="submit">Envoyer au propriétaire</button></form>{% endif %}
+</div>
+<p style="color:var(--doux)">{% if r.campagne %}Campagne {{ r.campagne }} · {% endif %}Situation du {{ r.genere_le }}{% if not local %} (reçue le {{ recu_le|date:"d/m/Y à H:i" }}){% endif %}</p>
+
+<div class="grille">
+  <div class="indicateur"><div class="libelle">Acheté aujourd'hui</div><div class="valeur">{{ r.jour.poids|floatformat:"0g" }} kg</div><div class="detail">{{ r.jour.montant|floatformat:"0g" }} F · {{ r.jour.pesees|floatformat:"0g" }} pesées</div></div>
+  <div class="indicateur"><div class="libelle">7 derniers jours</div><div class="valeur">{{ r.semaine.poids|floatformat:"0g" }} kg</div><div class="detail">{{ r.semaine.montant|floatformat:"0g" }} F · {{ r.semaine.pesees|floatformat:"0g" }} pesées</div></div>
+  <div class="indicateur"><div class="libelle">Depuis le début de la campagne</div><div class="valeur">{{ r.total.poids|floatformat:"0g" }} kg</div><div class="detail">{{ r.total.montant|floatformat:"0g" }} F · {{ r.total.pesees|floatformat:"0g" }} pesées</div></div>
+  <div class="indicateur vert"><div class="libelle">Déjà payé</div><div class="valeur">{{ r.paye|floatformat:"0g" }} F</div><div class="detail">Avances données : {{ r.avances|floatformat:"0g" }} F</div></div>
+  <div class="indicateur {% if r.reste_a_payer > 0 %}rouge{% else %}vert{% endif %}"><div class="libelle">Reste à payer</div><div class="valeur">{{ r.reste_a_payer|floatformat:"0g" }} F</div><div class="detail">Primes comprises : {{ r.primes|floatformat:"0g" }} F</div></div>
+  <div class="indicateur orange"><div class="libelle">Stock en magasin</div><div class="valeur">{{ r.stock_total|floatformat:"0g" }} kg</div><div class="detail">Déjà livré : {{ r.livre|floatformat:"0g" }} kg</div></div>
+</div>
+
+<div class="carte">
+  <h2>Stock par magasin</h2>
+  <table><thead><tr><th>Magasin</th><th class="n">Poids (kg)</th></tr></thead><tbody>
+  {% for l in r.stock %}<tr><td>{{ l.magasin }}</td><td class="n">{{ l.poids|floatformat:"0g" }}</td></tr>
+  {% empty %}<tr><td colspan="2" class="vide">Aucun magasin.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+
+<div class="carte">
+  <h2>Dernières pesées</h2>
+  <div class="tableau-conteneur"><table>
+    <thead><tr><th>Date</th><th>Producteur</th><th>Magasin</th><th class="n">Poids net</th><th class="n">Montant</th></tr></thead>
+    <tbody>
+    {% for a in r.dernieres %}<tr><td>{{ a.date }}</td><td>{{ a.producteur }}</td><td>{{ a.magasin }}</td><td class="n">{{ a.poids|floatformat:"0g" }} kg</td><td class="n">{{ a.montant|floatformat:"0g" }} F</td></tr>
+    {% empty %}<tr><td colspan="5" class="vide">Aucune pesée enregistrée.</td></tr>{% endfor %}
+    </tbody>
+  </table></div>
+</div>
+
+{% if local %}
+<div class="carte no-print">
+  <h2>Pour le téléphone du propriétaire</h2>
+  {% if relais %}
+  <p>Quand internet est disponible, cliquez sur <strong>Envoyer au propriétaire</strong>. Il ouvre ensuite ce lien privé sur son téléphone :</p>
+  <p><strong style="word-break:break-all">{{ lien_prive }}</strong></p>
+  <p class="aide">Ne donnez ce lien qu'au propriétaire : toute personne qui l'a peut voir ces chiffres.</p>
+  {% else %}
+  <p>Si ce logiciel est installé sur un serveur internet, le propriétaire se connecte avec son compte et ouvre cette page.</p>
+  <p>Si ce logiciel est au bureau, sans internet permanent : demandez à votre fournisseur Akagri l'adresse du serveur,
+  saisissez-la dans <strong>Paramètres &gt; Coopérative</strong>, et donnez-lui cette clé : <strong style="word-break:break-all">{{ cle }}</strong></p>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

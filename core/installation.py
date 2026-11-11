@@ -15,7 +15,7 @@ from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse
 
-from .models import Campagne, Cooperative, Magasin
+from .models import PRODUIT_CHOICES, Campagne, Cooperative, Magasin
 
 _installe = False
 
@@ -30,7 +30,7 @@ def installation_terminee():
 class InstallationMiddleware:
     """Redirige vers l'assistant tant que le logiciel n'est pas configuré."""
 
-    LIBRES = ("/installation/", "/static/", "/sw.js", "/manifest.webmanifest")
+    LIBRES = ("/installation/", "/static/", "/sw.js", "/manifest.webmanifest", "/relais/", "/p/")
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -48,7 +48,12 @@ def debut_campagne(aujourd_hui):
 
 class InstallationForm(forms.Form):
     # Coopérative
-    nom = forms.CharField(label="Nom de la coopérative", max_length=200)
+    produit = forms.ChoiceField(
+        label="Produit acheté", choices=PRODUIT_CHOICES, initial="cacao",
+        help_text="Cacao, café, hévéa ou palmier à huile. Les écrans s'adaptent (certification et humidité pour le cacao, "
+                  "pont-bascule pour l'hévéa et le palmier).",
+    )
+    nom = forms.CharField(label="Nom de la coopérative ou du point d'achat", max_length=200)
     sigle = forms.CharField(max_length=30, required=False)
     code_ccc = forms.CharField(label="Code coopérative (CCC)", max_length=60, required=False)
     numero_agrement = forms.CharField(label="N° d'agrément", max_length=60, required=False)
@@ -98,7 +103,7 @@ class InstallationForm(forms.Form):
 
 
 SECTIONS = [
-    ("La coopérative", ["nom", "sigle", "code_ccc", "numero_agrement", "region", "departement", "sous_prefecture",
+    ("Le produit et la structure", ["produit", "nom", "sigle", "code_ccc", "numero_agrement", "region", "departement", "sous_prefecture",
                         "telephone"]),
     ("Le compte administrateur", ["identifiant", "prenom", "nom_famille", "mot_de_passe", "confirmation"]),
     ("La campagne et le premier magasin", ["campagne", "date_debut", "date_fin", "prix_kg", "magasin_code",
@@ -120,13 +125,13 @@ def assistant(request):
         with transaction.atomic():
             call_command("init_coop", verbosity=0)
             coop = Cooperative.objects.first() or Cooperative()
-            for champ in ("nom", "sigle", "code_ccc", "numero_agrement", "region", "departement", "sous_prefecture",
+            for champ in ("produit", "nom", "sigle", "code_ccc", "numero_agrement", "region", "departement", "sous_prefecture",
                           "telephone"):
                 setattr(coop, champ, d[champ])
             coop.save()
             if d["demo"]:
                 call_command("init_coop", "--demo", verbosity=0)
-                Cooperative.objects.filter(pk=coop.pk).update(nom=d["nom"], sigle=d["sigle"])
+                Cooperative.objects.filter(pk=coop.pk).update(nom=d["nom"], sigle=d["sigle"], produit=d["produit"])
             else:
                 Campagne.objects.create(libelle=d["campagne"], date_debut=d["date_debut"], date_fin=d["date_fin"],
                                         prix_kg=d["prix_kg"], active=True)
@@ -136,8 +141,9 @@ def assistant(request):
                                                   first_name=d["prenom"], last_name=d["nom_famille"])
             admin.groups.add(Group.objects.get(name="Administrateur"))
         login(request, admin, backend="django.contrib.auth.backends.ModelBackend")
-        messages.success(request, "Installation terminée. Bienvenue dans CacaoCoop ! Ajoutez maintenant vos "
-                                  "producteurs, puis les programmes de certification (menu Certification).")
+        suite = ", puis les programmes de certification (menu Certification)." if d["produit"] == "cacao" else "."
+        messages.success(request, "Installation terminée. Bienvenue dans Akagri ! Ajoutez maintenant vos "
+                                  "producteurs" + suite)
         return redirect(reverse("core:tableau_de_bord"))
     sections = [(titre, [form[c] for c in champs]) for titre, champs in SECTIONS]
     return render(request, "core/installation.html", {"form": form, "sections": sections})

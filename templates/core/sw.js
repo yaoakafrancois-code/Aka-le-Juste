@@ -1,4 +1,4 @@
-{% load static %}// Service worker CacaoCoop {{ version }}
+{% load static %}// Service worker Akagri {{ version }}
 const CACHE = "cacaocoop-{{ version }}";
 const FICHIERS = ["{% static 'css/app.css' %}", "{% static 'icones/icone-192.png' %}", "{% url 'core:hors_ligne' %}"];
 // Page de collecte terrain et ses données : gardées en cache pour rouvrir la page sans réseau.

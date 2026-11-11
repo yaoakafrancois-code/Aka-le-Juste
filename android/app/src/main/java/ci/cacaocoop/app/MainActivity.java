@@ -38,7 +38,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 /**
- * Application CacaoCoop pour tablettes et smartphones Android.
+ * Application Akagri pour tablettes et smartphones Android.
  *
  * Elle affiche le logiciel servi par l'ordinateur de la coopérative (réseau Wi-Fi local) ou par le serveur web.
  * Les pesées de la page « Collecte terrain » sont gardées sur l'appareil quand le réseau est coupé, puis envoyées
@@ -77,14 +77,14 @@ public class MainActivity extends Activity {
         ecran.setPadding(marge, marge, marge, marge);
 
         TextView titre = new TextView(this);
-        titre.setText("CacaoCoop");
+        titre.setText("Akagri");
         titre.setTextSize(28);
         titre.setTextColor(Color.rgb(62, 38, 25));
         titre.setGravity(Gravity.CENTER);
         ecran.addView(titre);
 
         TextView aide = new TextView(this);
-        aide.setText("Adresse du logiciel de la coopérative.\n\nSur l'ordinateur principal, lancez « CacaoCoop - réseau "
+        aide.setText("Adresse du logiciel de la coopérative.\n\nSur l'ordinateur principal, lancez « Akagri - réseau "
                 + "(tablettes) » : l'adresse s'affiche dans la fenêtre (par exemple 192.168.1.10:8000).\n"
                 + "La tablette doit être connectée au même Wi-Fi.");
         aide.setTextSize(16);
@@ -160,11 +160,11 @@ public class MainActivity extends Activity {
         reglages.setCacheMode(WebSettings.LOAD_DEFAULT);
         reglages.setBuiltInZoomControls(true);
         reglages.setDisplayZoomControls(false);
-        reglages.setUserAgentString(reglages.getUserAgentString() + " CacaoCoopAndroid/" + versionApp());
+        reglages.setUserAgentString(reglages.getUserAgentString() + " AkagriAndroid/" + versionApp());
         CookieManager.getInstance().setAcceptCookie(true);
         CookieManager.getInstance().setAcceptThirdPartyCookies(vue, false);
 
-        vue.addJavascriptInterface(new Impression(), "CacaoCoopAndroid");
+        vue.addJavascriptInterface(new Impression(), "AkagriAndroid");
         vue.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest requete) {
@@ -181,13 +181,13 @@ public class MainActivity extends Activity {
 
             @Override
             public void onPageStarted(WebView v, String url, Bitmap icone) {
-                setTitle("CacaoCoop");
+                setTitle("Akagri");
             }
 
             @Override
             public void onPageFinished(WebView v, String url) {
                 // window.print() n'existe pas dans une WebView : on le relie à l'impression Android.
-                v.evaluateJavascript("window.print = function () { CacaoCoopAndroid.imprimer(document.title); };", null);
+                v.evaluateJavascript("window.print = function () { AkagriAndroid.imprimer(document.title); };", null);
                 CookieManager.getInstance().flush();
             }
 
@@ -199,7 +199,7 @@ public class MainActivity extends Activity {
                             + "<h2 style='color:#3e2619'>Serveur injoignable</h2>"
                             + "<p>Impossible de joindre <b>" + TextUtils.htmlEncode(serveur) + "</b>.</p><ul>"
                             + "<li>La tablette est-elle connectée au Wi-Fi de la coopérative ?</li>"
-                            + "<li>CacaoCoop est-il lancé sur l'ordinateur avec « réseau (tablettes) » ?</li></ul>"
+                            + "<li>Akagri est-il lancé sur l'ordinateur avec « réseau (tablettes) » ?</li></ul>"
                             + "<p>Les pesées déjà saisies dans la collecte terrain restent sur la tablette.</p>"
                             + "<p><a href='" + TextUtils.htmlEncode(requete.getUrl().toString())
                             + "' style='font-size:18px'>Réessayer</a></p>"
@@ -263,7 +263,7 @@ public class MainActivity extends Activity {
             runOnUiThread(() -> {
                 if (vue == null) return;
                 PrintManager gestionnaire = (PrintManager) getSystemService(Context.PRINT_SERVICE);
-                String nom = (titre == null || titre.isEmpty()) ? "CacaoCoop" : titre;
+                String nom = (titre == null || titre.isEmpty()) ? "Akagri" : titre;
                 gestionnaire.print(nom, vue.createPrintDocumentAdapter(nom),
                         new PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build());
             });

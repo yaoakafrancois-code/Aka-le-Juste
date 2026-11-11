@@ -1,11 +1,12 @@
 from django.contrib import admin
 
-from .models import Campagne, Cooperative, Magasin, PrixDuJour, Section
+from .models import Campagne, Cooperative, Magasin, PrixDuJour, ResumeRecu, Section
 
 
 @admin.register(Cooperative)
 class CooperativeAdmin(admin.ModelAdmin):
-    list_display = ("nom", "sigle", "numero_agrement", "telephone")
+    list_display = ("nom", "produit", "sigle", "numero_agrement", "telephone")
+    readonly_fields = ("cle_relais",)
 
     def has_add_permission(self, request):
         return not Cooperative.objects.exists()
@@ -40,3 +41,11 @@ class SectionAdmin(admin.ModelAdmin):
 class MagasinAdmin(admin.ModelAdmin):
     list_display = ("code", "nom", "localite", "responsable", "capacite_kg")
     search_fields = ("code", "nom")
+
+
+@admin.register(ResumeRecu)
+class ResumeRecuAdmin(admin.ModelAdmin):
+    list_display = ("nom", "actif", "recu_le")
+    list_filter = ("actif",)
+    search_fields = ("nom",)
+    readonly_fields = ("recu_le",)

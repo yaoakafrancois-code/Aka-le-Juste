@@ -2,8 +2,8 @@
 {% block titre %}Installation{% endblock %}
 {% block contenu %}
 <div class="installation">
-  <h1>Bienvenue dans CacaoCoop</h1>
-  <p>Première utilisation : renseignez votre coopérative et créez le compte administrateur.
+  <h1>Bienvenue dans Akagri</h1>
+  <p>Première utilisation : choisissez votre produit, renseignez votre structure et créez le compte administrateur.
   Tout pourra être modifié ensuite dans le menu <strong>Paramètres</strong>.</p>
   <form method="post" novalidate>{% csrf_token %}
     {% if form.non_field_errors %}<ul class="messages"><li class="error">{{ form.non_field_errors|join:" " }}</li></ul>{% endif %}

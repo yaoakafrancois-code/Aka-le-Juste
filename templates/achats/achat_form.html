@@ -9,14 +9,14 @@
 <div class="fiche-producteur" id="fiche-producteur" hidden></div>
 {% endblock %}
 {% block apres_champs %}
-<div class="calcul" id="bloc-certification" hidden></div>
+<div class="calcul" id="bloc-certification" hidden{% if not est_cacao %} style="display:none"{% endif %}></div>
 <div class="calcul">
   <div><span>Poids net</span><strong id="calc-net">–</strong></div>
-  <div><span>dont certifié</span><strong id="calc-cert">–</strong></div>
-  <div><span>dont non certifié</span><strong id="calc-conv">–</strong></div>
+  <div{% if not est_cacao %} hidden{% endif %}><span>dont certifié</span><strong id="calc-cert">–</strong></div>
+  <div{% if not est_cacao %} hidden{% endif %}><span>dont non certifié</span><strong id="calc-conv">–</strong></div>
   <div><span>Prix appliqué</span><strong id="calc-prix">–</strong></div>
-  <div><span>Montant cacao</span><strong id="calc-montant">–</strong></div>
-  <div><span>Prime certification</span><strong id="calc-prime">–</strong></div>
+  <div><span>Montant {{ produit.nom }}</span><strong id="calc-montant">–</strong></div>
+  <div{% if not est_cacao %} hidden{% endif %}><span>Prime certification</span><strong id="calc-prime">–</strong></div>
 </div>
 {% endblock %}
 {% block scripts %}
@@ -71,7 +71,7 @@
     var bloc = $("bloc-certification");
     bloc.hidden = !$("id_producteur").value;
     if (!infos.certifications.length) {
-      bloc.innerHTML = "<div><span>Certification</span><strong>Producteur non certifié pour cette campagne : tout le cacao est acheté en conventionnel.</strong></div>";
+      bloc.innerHTML = "<div><span>Certification</span><strong>Producteur non certifié pour cette campagne : tout le produit est acheté en conventionnel.</strong></div>";
       return;
     }
     bloc.innerHTML = infos.certifications.map(function (c) {

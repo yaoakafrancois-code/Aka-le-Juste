@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block titre %}CacaoCoop{% endblock %} · {{ cooperative }}</title>
+  <title>{% block titre %}Akagri{% endblock %} · {{ cooperative }}</title>
   <meta name="theme-color" content="#3e2619">
   <link rel="manifest" href="{% url 'core:manifeste' %}">
   <link rel="icon" href="{% static 'icones/icone-192.png' %}">
@@ -13,7 +13,7 @@
 <body>
 {% if user.is_authenticated %}
 <header class="entete">
-  <a class="marque" href="{% url 'core:tableau_de_bord' %}">CacaoCoop<small>{{ cooperative }}</small></a>
+  <a class="marque" href="{% url 'core:tableau_de_bord' %}">Akagri<small>{{ cooperative }}</small></a>
   <a class="btn-pesee-mobile" href="{% url 'achats:creer' %}">+ Pesée</a>
   <button class="burger" type="button" aria-label="Menu" aria-expanded="false" onclick="var o=document.body.classList.toggle('menu-ouvert');this.setAttribute('aria-expanded',o)">☰</button>
   <nav class="menu">
@@ -23,12 +23,12 @@
       <a href="{% url 'producteurs:creer' %}">Nouveau producteur</a>
       <a href="{% url 'producteurs:parcelles' %}">Parcelles / traçabilité</a>
     </div></details>
-    <details><summary>Certification ▾</summary><div>
+    {% if est_cacao %}<details><summary>Certification ▾</summary><div>
       <a href="{% url 'producteurs:certifications' %}">Production certifiée (RA, ARS 1000)</a>
       <a href="{% url 'producteurs:certification_creer' %}">Certifier un producteur</a>
       <a href="{% url 'producteurs:augmentations' %}">Augmentations de quota</a>
       {% if user.is_staff %}<a href="{% url 'admin:producteurs_programme_changelist' %}">Programmes et primes</a>{% endif %}
-    </div></details>
+    </div></details>{% endif %}
     <details><summary>Achats ▾</summary><div>
       <a href="{% url 'achats:creer' %}">Nouvelle pesée</a>
       <a href="{% url 'achats:terrain' %}">Collecte terrain (tablette, hors ligne)</a>
@@ -47,6 +47,7 @@
       <a href="{% url 'stocks:livraisons' %}">Expéditions / connaissements</a>
     </div></details>
     <a href="{% url 'core:rapports' %}">Rapports</a>
+    <a href="{% url 'core:proprietaire' %}">Propriétaire</a>
     {% if user.is_staff %}<a href="{% url 'admin:index' %}">Paramètres</a>{% endif %}
   </nav>
   <div class="utilisateur">
